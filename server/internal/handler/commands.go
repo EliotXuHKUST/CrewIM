@@ -4,14 +4,19 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
+	"path/filepath"
+	"strings"
 	"time"
 
+	"github.com/xiaozhong/command-center-server/internal/asr"
 	"github.com/xiaozhong/command-center-server/internal/db"
 	"github.com/xiaozhong/command-center-server/internal/middleware"
 	"github.com/xiaozhong/command-center-server/internal/model"
 	"github.com/xiaozhong/command-center-server/internal/openclaw"
+	"github.com/xiaozhong/command-center-server/internal/service"
 	"github.com/xiaozhong/command-center-server/internal/ws"
 )
 
@@ -21,19 +26,24 @@ type Enqueuer interface {
 }
 
 type CommandHandler struct {
-	Hub          *ws.Hub
-	Queue        Enqueuer
+	Hub            *ws.Hub
+	Queue          Enqueuer
 	OpenClawClient *openclaw.Client
+	ASR            asr.Transcriber
+	UploadDir      string
 }
 
 func (h *CommandHandler) CreateCommand(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r)
 
 	var text, parentTaskID, sessionID *string
+	var audioURL *string
+	var imageURLs []string
 	ct := r.Header.Get("Content-Type")
 
 	if len(ct) > 19 && ct[:19] == "multipart/form-data" {
-		r.ParseMultipartForm(10 << 20)
+		r.ParseMultipartForm(20 << 20) // 20MB
+
 		if v := r.FormValue("text"); v != "" {
 			text = &v
 		}
@@ -42,6 +52,72 @@ func (h *CommandHandler) CreateCommand(w http.ResponseWriter, r *http.Request) {
 		}
 		if v := r.FormValue("session_id"); v != "" {
 			sessionID = &v
+		}
+
+		// Handle audio file
+		audioFile, audioHeader, err := r.FormFile("audio")
+		if err == nil {
+			defer audioFile.Close()
+			data, _ := io.ReadAll(audioFile)
+			ext := filepath.Ext(audioHeader.Filename)
+			if ext == "" {
+				ext = ".m4a"
+			}
+			savedPath, err := service.SaveFile(filepath.Join(h.UploadDir, "audio"), data, ext)
+			if err == nil {
+				audioURL = &savedPath
+				slog.Info("Audio saved", "path", savedPath, "size", len(data))
+
+				// Transcribe if no text provided
+				if text == nil || *text == "" {
+					if h.ASR != nil {
+						transcribed, err := h.ASR.Transcribe(savedPath)
+						if err != nil {
+							slog.Error("ASR failed", "err", err)
+						} else if transcribed != "" {
+							text = &transcribed
+							slog.Info("ASR transcribed", "text", transcribed)
+						}
+					}
+				}
+			} else {
+				slog.Error("Save audio failed", "err", err)
+			}
+		}
+
+		// Handle image files
+		if r.MultipartForm != nil && r.MultipartForm.File != nil {
+			for _, fileHeaders := range r.MultipartForm.File {
+				for _, fh := range fileHeaders {
+					if strings.HasPrefix(fh.Header.Get("Content-Disposition"), "form-data; name=\"audio\"") {
+						continue
+					}
+					if !strings.Contains(fh.Header.Get("Content-Disposition"), "name=\"images\"") {
+						continue
+					}
+					f, err := fh.Open()
+					if err != nil {
+						continue
+					}
+					data, _ := io.ReadAll(f)
+					f.Close()
+					ext := filepath.Ext(fh.Filename)
+					if ext == "" {
+						ext = ".jpg"
+					}
+					savedPath, err := service.SaveFile(filepath.Join(h.UploadDir, "images"), data, ext)
+					if err == nil {
+						imageURLs = append(imageURLs, savedPath)
+						slog.Info("Image saved", "path", savedPath, "size", len(data))
+					}
+				}
+			}
+		}
+
+		// If still no text after ASR, and we have images, set a description
+		if (text == nil || *text == "") && len(imageURLs) > 0 {
+			desc := fmt.Sprintf("请分析这%d张图片", len(imageURLs))
+			text = &desc
 		}
 	} else {
 		var body struct {
@@ -55,21 +131,33 @@ func (h *CommandHandler) CreateCommand(w http.ResponseWriter, r *http.Request) {
 		sessionID = body.SessionID
 	}
 
-	if text == nil {
-		http.Error(w, `{"error":"At least text is required"}`, http.StatusBadRequest)
+	if text == nil || *text == "" {
+		http.Error(w, `{"error":"No text provided and transcription failed"}`, http.StatusBadRequest)
 		return
 	}
 
+	// Insert task
 	var taskID string
 	var createdAt time.Time
-	err := db.Pool.QueryRow(context.Background(),
-		`INSERT INTO tasks (user_id, session_id, input_text, parent_task_id, status)
-		 VALUES ($1, $2, $3, $4, 'created') RETURNING id, created_at`,
-		userID, sessionID, text, parentTaskID).Scan(&taskID, &createdAt)
 
-	if err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err.Error()), http.StatusInternalServerError)
-		return
+	if len(imageURLs) > 0 {
+		err := db.Pool.QueryRow(context.Background(),
+			`INSERT INTO tasks (user_id, session_id, input_text, input_audio_url, input_image_urls, parent_task_id, status)
+			 VALUES ($1, $2, $3, $4, $5, $6, 'created') RETURNING id, created_at`,
+			userID, sessionID, text, audioURL, imageURLs, parentTaskID).Scan(&taskID, &createdAt)
+		if err != nil {
+			http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err.Error()), http.StatusInternalServerError)
+			return
+		}
+	} else {
+		err := db.Pool.QueryRow(context.Background(),
+			`INSERT INTO tasks (user_id, session_id, input_text, input_audio_url, parent_task_id, status)
+			 VALUES ($1, $2, $3, $4, $5, 'created') RETURNING id, created_at`,
+			userID, sessionID, text, audioURL, parentTaskID).Scan(&taskID, &createdAt)
+		if err != nil {
+			http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err.Error()), http.StatusInternalServerError)
+			return
+		}
 	}
 
 	if sessionID != nil {
@@ -92,7 +180,6 @@ func (h *CommandHandler) CreateCommand(w http.ResponseWriter, r *http.Request) {
 		},
 	})
 
-	// Route: try OpenClaw first if user has it configured
 	if h.OpenClawClient != nil {
 		gwURL := h.OpenClawClient.GetGatewayURL(userID)
 		if gwURL != "" {
@@ -103,7 +190,6 @@ func (h *CommandHandler) CreateCommand(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Fallback: use built-in AI pipeline
 	if h.Queue != nil {
 		h.Queue.EnqueueUnderstand(taskID)
 	}
