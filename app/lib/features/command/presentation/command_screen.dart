@@ -101,9 +101,23 @@ class _CommandScreenState extends State<CommandScreen> {
     _loadTasks();
   }
 
-  void _onCamera() => _sendCommand('[拍照指令] 请分析我拍摄的内容');
-  void _onPhotoLibrary() => _sendCommand('[相册图片] 请分析这张图片');
-  void _onFile() => _sendCommand('[文件上传] 请处理这个文件');
+  Future<void> _sendMedia({String? audioPath, List<String>? imagePaths}) async {
+    setState(() => _errorBanner = null);
+    try {
+      await apiClient.sendCommandWithMedia(
+        audioPath: audioPath,
+        imagePaths: imagePaths,
+      );
+      await _loadTasks();
+    } catch (e) {
+      if (mounted) {
+        setState(() => _errorBanner = '发送失败，请重试');
+        Future.delayed(const Duration(seconds: 4), () {
+          if (mounted) setState(() => _errorBanner = null);
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -257,12 +271,10 @@ class _CommandScreenState extends State<CommandScreen> {
   Widget _buildBottomArea(bool isDark) {
     return ChatInputBar(
       onSubmitText: _sendCommand,
-      onRecordStart: () {},
-      onRecordEnd: () => _sendCommand('[语音指令] 这是一条语音消息'),
-      onRecordCancel: () {},
-      onCamera: _onCamera,
-      onPhotoLibrary: _onPhotoLibrary,
-      onFile: _onFile,
+      onSubmitMedia: ({String? audioPath, List<String>? imagePaths}) {
+        _sendMedia(audioPath: audioPath, imagePaths: imagePaths);
+      },
+      onFile: () {},
     );
   }
 }

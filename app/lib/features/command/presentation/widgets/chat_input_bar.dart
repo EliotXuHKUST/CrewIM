@@ -1,25 +1,21 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/audio/audio_recorder.dart';
+
+typedef MediaCallback = void Function({String? audioPath, List<String>? imagePaths});
 
 class ChatInputBar extends StatefulWidget {
   final ValueChanged<String>? onSubmitText;
-  final VoidCallback? onRecordStart;
-  final VoidCallback? onRecordEnd;
-  final VoidCallback? onRecordCancel;
-  final VoidCallback? onCamera;
-  final VoidCallback? onPhotoLibrary;
+  final MediaCallback? onSubmitMedia;
   final VoidCallback? onFile;
 
   const ChatInputBar({
     super.key,
     this.onSubmitText,
-    this.onRecordStart,
-    this.onRecordEnd,
-    this.onRecordCancel,
-    this.onCamera,
-    this.onPhotoLibrary,
+    this.onSubmitMedia,
     this.onFile,
   });
 
@@ -31,6 +27,7 @@ class _ChatInputBarState extends State<ChatInputBar>
     with SingleTickerProviderStateMixin {
   final _controller = TextEditingController();
   final _focusNode = FocusNode();
+  final _picker = ImagePicker();
   bool _isVoiceMode = true;
   bool _hasText = false;
   bool _isRecording = false;
@@ -98,7 +95,10 @@ class _ChatInputBarState extends State<ChatInputBar>
     if (_showMorePanel) _focusNode.unfocus();
   }
 
-  void _onPanStart(DragStartDetails _) {
+  Future<void> _onPanStart(DragStartDetails _) async {
+    final started = await AppAudioRecorder.instance.start();
+    if (!started) return;
+
     setState(() {
       _isRecording = true;
       _isCancelling = false;
@@ -109,10 +109,10 @@ class _ChatInputBarState extends State<ChatInputBar>
       if (mounted) setState(() => _recordSeconds++);
     });
     HapticFeedback.mediumImpact();
-    widget.onRecordStart?.call();
   }
 
   void _onPanUpdate(DragUpdateDetails details) {
+    if (!_isRecording) return;
     final shouldCancel = details.localPosition.dy < -60;
     if (shouldCancel != _isCancelling) {
       setState(() => _isCancelling = shouldCancel);
@@ -120,20 +120,49 @@ class _ChatInputBarState extends State<ChatInputBar>
     }
   }
 
-  void _onPanEnd(DragEndDetails _) {
+  Future<void> _onPanEnd(DragEndDetails _) async {
+    if (!_isRecording) return;
     _pulseController.stop();
     _pulseController.reset();
     _recordTimer?.cancel();
+
     if (_isCancelling) {
-      widget.onRecordCancel?.call();
+      await AppAudioRecorder.instance.cancel();
     } else {
-      widget.onRecordEnd?.call();
+      final path = await AppAudioRecorder.instance.stop();
+      if (path != null) {
+        widget.onSubmitMedia?.call(audioPath: path);
+      }
     }
     setState(() {
       _isRecording = false;
       _isCancelling = false;
       _recordSeconds = 0;
     });
+  }
+
+  Future<void> _onCamera() async {
+    setState(() => _showMorePanel = false);
+    try {
+      final image = await _picker.pickImage(source: ImageSource.camera, imageQuality: 80);
+      if (image != null) {
+        widget.onSubmitMedia?.call(imagePaths: [image.path]);
+      }
+    } catch (e) {
+      debugPrint('Camera pick failed: $e');
+    }
+  }
+
+  Future<void> _onPhotoLibrary() async {
+    setState(() => _showMorePanel = false);
+    try {
+      final images = await _picker.pickMultiImage(imageQuality: 80);
+      if (images.isNotEmpty) {
+        widget.onSubmitMedia?.call(imagePaths: images.map((x) => x.path).toList());
+      }
+    } catch (e) {
+      debugPrint('Photo library pick failed: $e');
+    }
   }
 
   String _formatDuration(int seconds) {
@@ -213,10 +242,7 @@ class _ChatInputBarState extends State<ChatInputBar>
                 const SizedBox(width: 16),
                 Container(
                   width: 8, height: 8,
-                  decoration: BoxDecoration(
-                    color: color,
-                    shape: BoxShape.circle,
-                  ),
+                  decoration: BoxDecoration(color: color, shape: BoxShape.circle),
                 ),
                 const SizedBox(width: 10),
                 Text(
@@ -376,10 +402,7 @@ class _ChatInputBarState extends State<ChatInputBar>
               label: '拍照',
               color: iconColor,
               isDark: isDark,
-              onTap: () {
-                setState(() => _showMorePanel = false);
-                widget.onCamera?.call();
-              },
+              onTap: _onCamera,
             ),
             const SizedBox(width: 20),
             _MoreAction(
@@ -387,10 +410,7 @@ class _ChatInputBarState extends State<ChatInputBar>
               label: '相册',
               color: iconColor,
               isDark: isDark,
-              onTap: () {
-                setState(() => _showMorePanel = false);
-                widget.onPhotoLibrary?.call();
-              },
+              onTap: _onPhotoLibrary,
             ),
             const SizedBox(width: 20),
             _MoreAction(

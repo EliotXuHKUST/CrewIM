@@ -19,6 +19,7 @@ type Config struct {
 	TencentSecretID   string
 	TencentSecretKey  string
 	AccountEncryptKey string
+	ASRProvider       string
 }
 
 func Load() *Config {
@@ -39,6 +40,7 @@ func Load() *Config {
 		TencentSecretID:   getEnv("TENCENT_SECRET_ID", ""),
 		TencentSecretKey:  getEnv("TENCENT_SECRET_KEY", ""),
 		AccountEncryptKey: getEnv("ACCOUNT_ENCRYPT_KEY", "dev-encrypt-key-change-me-32chr"),
+		ASRProvider:       getEnv("ASR_PROVIDER", "mock"),
 	}
 }
 

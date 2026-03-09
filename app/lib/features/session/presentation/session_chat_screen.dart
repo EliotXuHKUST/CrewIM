@@ -143,6 +143,27 @@ class _SessionChatScreenState extends State<SessionChatScreen> {
     _loadAll();
   }
 
+  Future<void> _sendMedia({String? audioPath, List<String>? imagePaths}) async {
+    if (_currentSessionId == null) return;
+
+    final label = audioPath != null ? '语音指令发送中…' : '图片上传中…';
+    final msg = await _repo.addUserMessage(_currentSessionId!, label);
+    setState(() => _messages.add(msg));
+    _scrollToBottom();
+
+    try {
+      await apiClient.sendCommandWithMedia(
+        audioPath: audioPath,
+        imagePaths: imagePaths,
+        sessionId: _currentSessionId,
+      );
+    } catch (e) {
+      debugPrint('Send media failed: $e');
+    }
+
+    _loadAll();
+  }
+
   Future<void> _switchToSession(String sessionId) async {
     setState(() {
       _currentSessionId = sessionId;
@@ -225,12 +246,10 @@ class _SessionChatScreenState extends State<SessionChatScreen> {
             ),
             ChatInputBar(
               onSubmitText: _sendText,
-              onRecordStart: () {},
-              onRecordEnd: () => _sendText('[语音指令]'),
-              onRecordCancel: () {},
-              onCamera: () => _sendText('[拍照指令] 请分析我拍摄的内容'),
-              onPhotoLibrary: () => _sendText('[相册图片] 请分析这张图片'),
-              onFile: () => _sendText('[文件上传] 请处理这个文件'),
+              onSubmitMedia: ({String? audioPath, List<String>? imagePaths}) {
+                _sendMedia(audioPath: audioPath, imagePaths: imagePaths);
+              },
+              onFile: () {},
             ),
           ],
         ),
