@@ -205,14 +205,15 @@ func (s *UnderstandingService) autoTitleSession(userID, sessionID, inputText str
 		"你是一个标题生成器。根据用户的指令，生成一个简洁的会话标题（5-8个字）。只输出标题本身，不要引号、标点或解释。",
 		inputText, 50)
 	if err != nil {
-		slog.Warn("Auto title generation failed", "err", err)
-		return
+		slog.Warn("Auto title generation failed, using fallback", "err", err)
+		title = inputText
 	}
 
 	title = strings.TrimSpace(title)
 	title = strings.Trim(title, "\"「」『』")
-	if len([]rune(title)) > 15 {
-		title = string([]rune(title)[:15])
+	runes := []rune(title)
+	if len(runes) > 15 {
+		title = string(runes[:14]) + "…"
 	}
 	if title == "" {
 		return

@@ -254,7 +254,7 @@ class _SessionChatScreenState extends State<SessionChatScreen> {
             metadata: {'step': '任务已确认，正在执行…'},
           );
         } catch (e) {
-          debugPrint('Confirm failed: $e');
+          _showError('确认失败：$e');
         }
 
       case 'cancel':
@@ -268,7 +268,7 @@ class _SessionChatScreenState extends State<SessionChatScreen> {
             metadata: {'error': '任务已取消'},
           );
         } catch (e) {
-          debugPrint('Cancel failed: $e');
+          _showError('取消失败：$e');
         }
 
       case 'retry':
@@ -281,7 +281,7 @@ class _SessionChatScreenState extends State<SessionChatScreen> {
             metadata: {'step': '重新理解指令中…'},
           );
         } catch (e) {
-          debugPrint('Retry failed: $e');
+          _showError('重试失败：$e');
         }
 
       case 'follow_up':
@@ -342,7 +342,7 @@ class _SessionChatScreenState extends State<SessionChatScreen> {
     try {
       await _repo.followUp(taskId, text);
     } catch (e) {
-      debugPrint('Follow-up failed: $e');
+      _showError('补充发送失败：$e');
     }
 
     _loadAll();
@@ -363,7 +363,7 @@ class _SessionChatScreenState extends State<SessionChatScreen> {
     try {
       await apiClient.sendCommand(text, sessionId: _currentSessionId);
     } catch (e) {
-      debugPrint('Send command failed (queued for sync): $e');
+      _showError('指令发送失败：$e');
     }
 
     _loadAll();
@@ -384,10 +384,22 @@ class _SessionChatScreenState extends State<SessionChatScreen> {
         sessionId: _currentSessionId,
       );
     } catch (e) {
-      debugPrint('Send media failed: $e');
+      _showError('上传失败：$e');
     }
 
     _loadAll();
+  }
+
+  void _showError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: AppColors.error,
+        duration: const Duration(seconds: 3),
+      ),
+    );
   }
 
   Future<void> _switchToSession(String sessionId) async {

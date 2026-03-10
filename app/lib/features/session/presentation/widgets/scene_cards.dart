@@ -9,28 +9,28 @@ class SceneCards extends StatelessWidget {
 
   static const _scenes = [
     _Scene(
+      icon: Icons.description_outlined,
+      title: '写个方案',
+      desc: '简报、邮件草稿、会议纪要',
+      prompt: '帮我写一份本周的工作简报，重点包括完成的事项和下周计划',
+    ),
+    _Scene(
       icon: Icons.checklist_rounded,
-      title: '任务管理',
-      desc: '整理待办、跟进进度',
-      prompt: '帮我整理今天的待办事项',
+      title: '列个清单',
+      desc: '把事情拆解成行动项',
+      prompt: '帮我把这些事整理成一个待办清单：招聘进度跟进、Q2预算初稿、客户回访',
     ),
     _Scene(
       icon: Icons.auto_awesome_rounded,
-      title: '信息整理',
-      desc: '汇总信息、提取要点',
-      prompt: '帮我整理最近的重要信息',
+      title: '帮我想想',
+      desc: '分析问题、给出建议',
+      prompt: '团队最近士气不太好，帮我想想可能的原因和改善方案',
     ),
     _Scene(
-      icon: Icons.description_outlined,
-      title: '文档生成',
-      desc: '简报、邮件、会议纪要',
-      prompt: '帮我生成一份工作简报',
-    ),
-    _Scene(
-      icon: Icons.insights_rounded,
-      title: '数据分析',
-      desc: '分析数据、发现异常',
-      prompt: '帮我分析最近的业务数据',
+      icon: Icons.email_outlined,
+      title: '发封邮件',
+      desc: '起草并发送邮件',
+      prompt: '帮我给团队写一封邮件，通知下周三下午2点开季度复盘会',
     ),
   ];
 

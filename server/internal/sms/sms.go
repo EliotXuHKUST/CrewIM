@@ -1,9 +1,17 @@
 package sms
 
 import (
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
+	"io"
 	"log/slog"
 	"math/rand"
+	"net/http"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -31,8 +39,103 @@ type TencentCloudSender struct {
 }
 
 func (t *TencentCloudSender) Send(phone, code string) error {
-	// TODO: integrate with Tencent Cloud SMS SDK
-	return fmt.Errorf("tencent cloud SMS not yet implemented")
+	if t.SDKAppID == "" || t.SecretID == "" || t.SecretKey == "" {
+		return fmt.Errorf("tencent SMS config incomplete")
+	}
+
+	phoneNumber := phone
+	if !strings.HasPrefix(phone, "+") {
+		phoneNumber = "+86" + phone
+	}
+
+	payload := map[string]any{
+		"SmsSdkAppId":  t.SDKAppID,
+		"SignName":     t.SignName,
+		"TemplateId":   t.TemplateID,
+		"PhoneNumberSet": []string{phoneNumber},
+		"TemplateParamSet": []string{code, "5"},
+	}
+	body, _ := json.Marshal(payload)
+
+	host := "sms.tencentcloudapi.com"
+	service := "sms"
+	action := "SendSms"
+	version := "2021-01-11"
+	timestamp := time.Now().Unix()
+
+	authorization := t.signV3(host, service, action, version, timestamp, body)
+
+	req, _ := http.NewRequest("POST", "https://"+host, strings.NewReader(string(body)))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Host", host)
+	req.Header.Set("X-TC-Action", action)
+	req.Header.Set("X-TC-Version", version)
+	req.Header.Set("X-TC-Timestamp", strconv.FormatInt(timestamp, 10))
+	req.Header.Set("Authorization", authorization)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("SMS HTTP request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, _ := io.ReadAll(resp.Body)
+	slog.Info("Tencent SMS response", "status", resp.StatusCode, "body", string(respBody))
+
+	if resp.StatusCode != 200 {
+		return fmt.Errorf("SMS API returned %d: %s", resp.StatusCode, string(respBody))
+	}
+
+	var result struct {
+		Response struct {
+			SendStatusSet []struct {
+				Code    string `json:"Code"`
+				Message string `json:"Message"`
+			} `json:"SendStatusSet"`
+			Error *struct {
+				Code    string `json:"Code"`
+				Message string `json:"Message"`
+			} `json:"Error"`
+		} `json:"Response"`
+	}
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return fmt.Errorf("parse SMS response: %w", err)
+	}
+	if result.Response.Error != nil {
+		return fmt.Errorf("SMS API error: %s - %s", result.Response.Error.Code, result.Response.Error.Message)
+	}
+	if len(result.Response.SendStatusSet) > 0 && result.Response.SendStatusSet[0].Code != "Ok" {
+		return fmt.Errorf("SMS send failed: %s", result.Response.SendStatusSet[0].Message)
+	}
+
+	return nil
+}
+
+func (t *TencentCloudSender) signV3(host, service, action, version string, timestamp int64, payload []byte) string {
+	date := time.Unix(timestamp, 0).UTC().Format("2006-01-02")
+	canonicalRequest := fmt.Sprintf("POST\n/\n\ncontent-type:application/json\nhost:%s\n\ncontent-type;host\n%s",
+		host, sha256Hex(payload))
+	stringToSign := fmt.Sprintf("TC3-HMAC-SHA256\n%d\n%s/%s/tc3_request\n%s",
+		timestamp, date, service, sha256Hex([]byte(canonicalRequest)))
+
+	secretDate := hmacSHA256([]byte("TC3"+t.SecretKey), date)
+	secretService := hmacSHA256(secretDate, service)
+	secretSigning := hmacSHA256(secretService, "tc3_request")
+	signature := hex.EncodeToString(hmacSHA256(secretSigning, stringToSign))
+
+	return fmt.Sprintf("TC3-HMAC-SHA256 Credential=%s/%s/%s/tc3_request, SignedHeaders=content-type;host, Signature=%s",
+		t.SecretID, date, service, signature)
+}
+
+func hmacSHA256(key []byte, msg string) []byte {
+	h := hmac.New(sha256.New, key)
+	h.Write([]byte(msg))
+	return h.Sum(nil)
+}
+
+func sha256Hex(data []byte) string {
+	h := sha256.Sum256(data)
+	return hex.EncodeToString(h[:])
 }
 
 type codeEntry struct {
