@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/network/api_client.dart';
+import '../../session/data/session_repository.dart';
 import 'widgets/result_card.dart';
 
 class TaskDetailScreen extends StatefulWidget {
@@ -52,7 +53,14 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
         });
       }
     } catch (e) {
-      debugPrint('Load detail failed: $e');
+      debugPrint('Load detail from server failed: $e, trying local');
+      if (_task == null) {
+        final local = await SessionRepository().getTask(widget.taskId);
+        if (local != null && mounted) {
+          setState(() { _task = local; _loading = false; });
+          return;
+        }
+      }
       if (mounted) setState(() => _loading = false);
     }
   }

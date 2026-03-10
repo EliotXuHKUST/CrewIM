@@ -62,6 +62,9 @@ class _ChatInputBarState extends State<ChatInputBar>
 
   @override
   void dispose() {
+    if (_isRecording) {
+      AppAudioRecorder.instance.cancel();
+    }
     _controller.dispose();
     _focusNode.dispose();
     _recordTimer?.cancel();

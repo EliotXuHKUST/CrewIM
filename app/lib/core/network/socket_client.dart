@@ -3,28 +3,30 @@ import 'dart:convert';
 import 'dart:io';
 import '../config/env.dart';
 
-/// WebSocket client with auto-reconnect.
-/// Uses dart:io WebSocket directly; swap for web_socket_channel package
-/// when dependencies are installed via `flutter pub add web_socket_channel`.
+typedef TokenProvider = String? Function();
+
 class SocketClient {
   WebSocket? _channel;
   final _eventController = StreamController<Map<String, dynamic>>.broadcast();
   Timer? _reconnectTimer;
-  String? _token;
+  final TokenProvider _tokenProvider;
   bool _disposed = false;
   int _reconnectAttempts = 0;
   static const _maxReconnectDelay = 30;
 
+  SocketClient(this._tokenProvider);
+
   Stream<Map<String, dynamic>> get eventStream => _eventController.stream;
 
-  void connect(String token) {
-    _token = token;
+  void connect() {
     _reconnectAttempts = 0;
     _doConnect();
   }
 
   Future<void> _doConnect() async {
-    if (_disposed || _token == null) return;
+    if (_disposed) return;
+    final token = _tokenProvider();
+    if (token == null) return;
 
     try {
       _channel = await WebSocket.connect(Env.wsBaseUrl);
@@ -32,8 +34,13 @@ class SocketClient {
       _channel!.listen(
         (data) {
           final message = jsonDecode(data as String) as Map<String, dynamic>;
-          if (message['type'] == 'auth_ok') {
+          final type = message['type'] as String?;
+          if (type == 'auth_ok') {
             _reconnectAttempts = 0;
+            return;
+          }
+          if (type == 'auth_error' || type == 'auth_required') {
+            _channel?.close();
             return;
           }
           _eventController.add(message);
@@ -42,7 +49,7 @@ class SocketClient {
         onError: (_) => _onDisconnect(),
       );
 
-      _channel!.add(jsonEncode({'type': 'auth', 'token': _token}));
+      _channel!.add(jsonEncode({'type': 'auth', 'token': token}));
     } catch (_) {
       _scheduleReconnect();
     }

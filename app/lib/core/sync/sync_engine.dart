@@ -70,6 +70,9 @@ class SyncEngine {
         } catch (e) {
           debugPrint('[SyncEngine] Failed action=$action id=$id: $e');
           await _queueDao.incrementRetries(id);
+          if (completedIds.isNotEmpty) {
+            await _queueDao.removeCompleted(completedIds);
+          }
           rethrow;
         }
       }

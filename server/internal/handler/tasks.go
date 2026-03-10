@@ -153,12 +153,6 @@ func (h *TaskHandler) CancelTask(w http.ResponseWriter, r *http.Request) {
 
 	db.Pool.Exec(ctx, `UPDATE tasks SET status = 'cancelled', updated_at = NOW() WHERE id = $1`, taskID)
 
-	h.Hub.Send(userID, model.PushEvent{
-		Type:   "task_failed",
-		TaskID: taskID,
-		Reason: "Cancelled by user",
-	})
-
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"taskId": taskID, "status": "cancelled"})
 }

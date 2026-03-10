@@ -175,6 +175,7 @@ class ApiClient {
     String? audioPath,
     List<String>? imagePaths,
     String? sessionId,
+    bool retryOn401 = true,
   }) async {
     final uri = Uri.parse('${Env.apiBaseUrl}/api/commands');
     final request = HttpClient();
@@ -222,8 +223,29 @@ class ApiClient {
       final response = await httpRequest.close();
       final responseBody = await response.transform(utf8.decoder).join();
 
+      if (response.statusCode == 401 && retryOn401) {
+        request.close();
+        final refreshed = await _tryRefreshToken();
+        if (refreshed) {
+          return sendCommandWithMedia(
+            text: text,
+            audioPath: audioPath,
+            imagePaths: imagePaths,
+            sessionId: sessionId,
+            retryOn401: false,
+          );
+        }
+        await _handleLogout();
+        throw ApiException(401, '登录已过期，请重新登录');
+      }
+
       if (response.statusCode >= 400) {
-        throw ApiException(response.statusCode, 'Upload failed');
+        String errorMsg = '上传失败';
+        try {
+          final decoded = jsonDecode(responseBody) as Map<String, dynamic>;
+          errorMsg = decoded['error'] as String? ?? errorMsg;
+        } catch (_) {}
+        throw ApiException(response.statusCode, errorMsg);
       }
 
       if (responseBody.isEmpty) return {};

@@ -17,9 +17,9 @@ class SocketManager {
 
   void connect() {
     if (_client != null || apiClient.token == null) return;
-    _client = SocketClient();
+    _client = SocketClient(() => apiClient.token);
     _sub = _client!.eventStream.listen(_dispatch);
-    _client!.connect(apiClient.token!);
+    _client!.connect();
   }
 
   void disconnect() {
@@ -27,6 +27,11 @@ class SocketManager {
     _sub = null;
     _client?.dispose();
     _client = null;
+  }
+
+  void reconnect() {
+    disconnect();
+    connect();
   }
 
   void addListener(String? sessionId, WsEventCallback callback) {
