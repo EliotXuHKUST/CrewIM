@@ -234,16 +234,29 @@ func (h *CommandHandler) FollowUp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	ctx := context.Background()
+
+	// Inherit session_id from parent task
+	var parentSessionID *string
+	db.Pool.QueryRow(ctx,
+		`SELECT session_id FROM tasks WHERE id = $1 AND user_id = $2`,
+		parentTaskID, userID).Scan(&parentSessionID)
+
 	var taskID string
 	var createdAt time.Time
-	err := db.Pool.QueryRow(context.Background(),
-		`INSERT INTO tasks (user_id, input_text, parent_task_id, status)
-		 VALUES ($1, $2, $3, 'created') RETURNING id, created_at`,
-		userID, body.Text, parentTaskID).Scan(&taskID, &createdAt)
+	err := db.Pool.QueryRow(ctx,
+		`INSERT INTO tasks (user_id, session_id, input_text, parent_task_id, status)
+		 VALUES ($1, $2, $3, $4, 'created') RETURNING id, created_at`,
+		userID, parentSessionID, body.Text, parentTaskID).Scan(&taskID, &createdAt)
 
 	if err != nil {
 		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err.Error()), http.StatusInternalServerError)
 		return
+	}
+
+	if parentSessionID != nil {
+		db.Pool.Exec(ctx,
+			`UPDATE sessions SET updated_at = NOW() WHERE id = $1`, *parentSessionID)
 	}
 
 	h.Hub.Send(userID, model.PushEvent{

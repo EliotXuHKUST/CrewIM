@@ -4,7 +4,7 @@ import 'package:path/path.dart' as p;
 class LocalDatabase {
   static Database? _db;
   static const _dbName = 'zhizhi.db';
-  static const _dbVersion = 1;
+  static const _dbVersion = 2;
 
   static Future<Database> get instance async {
     _db ??= await _open();
@@ -43,6 +43,8 @@ class LocalDatabase {
         role       TEXT NOT NULL,
         content    TEXT NOT NULL,
         task_id    TEXT,
+        type       TEXT NOT NULL DEFAULT 'text',
+        metadata   TEXT,
         created_at TEXT NOT NULL,
         synced     INTEGER DEFAULT 0,
         FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE
@@ -83,7 +85,10 @@ class LocalDatabase {
   }
 
   static Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
-    // Future migrations go here
+    if (oldVersion < 2) {
+      await db.execute("ALTER TABLE messages ADD COLUMN type TEXT NOT NULL DEFAULT 'text'");
+      await db.execute('ALTER TABLE messages ADD COLUMN metadata TEXT');
+    }
   }
 
   static Future<void> close() async {

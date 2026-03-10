@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'core/theme/app_theme.dart';
 import 'router/app_router.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const CommandCenterApp());
+  SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+  runApp(const ZhiZhiApp());
 }
 
-class CommandCenterApp extends StatelessWidget {
-  const CommandCenterApp({super.key});
+class ZhiZhiApp extends StatelessWidget {
+  const ZhiZhiApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -16,8 +18,7 @@ class CommandCenterApp extends StatelessWidget {
       title: '知知',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
-      darkTheme: AppTheme.dark,
-      themeMode: ThemeMode.system,
+      themeMode: ThemeMode.light,
       initialRoute: '/',
       onGenerateRoute: AppRouter.onGenerateRoute,
     );

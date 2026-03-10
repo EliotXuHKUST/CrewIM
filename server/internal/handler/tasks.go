@@ -21,6 +21,7 @@ type TaskHandler struct {
 func (h *TaskHandler) ListTasks(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r)
 	status := r.URL.Query().Get("status")
+	sessionID := r.URL.Query().Get("session_id")
 	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
 	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
 	if page < 1 {
@@ -35,10 +36,17 @@ func (h *TaskHandler) ListTasks(w http.ResponseWriter, r *http.Request) {
 	query := `SELECT id, user_id, input_text, understanding, status, created_at, updated_at
 	          FROM tasks WHERE user_id = $1`
 	args := []any{userID}
+	argIdx := 2
 
+	if sessionID != "" {
+		query += ` AND session_id = $` + strconv.Itoa(argIdx)
+		args = append(args, sessionID)
+		argIdx++
+	}
 	if status != "" {
-		query += ` AND status = $2`
+		query += ` AND status = $` + strconv.Itoa(argIdx)
 		args = append(args, status)
+		argIdx++
 	}
 	query += ` ORDER BY created_at DESC LIMIT ` + strconv.Itoa(limit) + ` OFFSET ` + strconv.Itoa(offset)
 

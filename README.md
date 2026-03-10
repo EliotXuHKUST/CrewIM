@@ -8,7 +8,7 @@
 
 做 **OpenCrew** 生态下的 AI 时代原生管理者控制台 — 管理者和一支 AI Agent Team 之间的指挥界面。
 
-> CrewIM 是 [OpenCrew](https://github.com/opencrew) 项目中的 IM 模块，负责指令输入、会话管理与实时推送。
+> CrewIM 是 **OpenCrew** 的 IM 模块，负责指令输入、会话管理与实时推送。
 
 **核心循环**：`输入 → 大模型理解 → Agent Teams 执行 → 确认/结果`
 
@@ -154,12 +154,14 @@ flutter run
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| `POST` | `/api/auth/sms-code` | 发送验证码 |
+| `POST` | `/api/auth/sms-code` | 发送验证码（含限流：60s/次，5次/时） |
 | `POST` | `/api/auth/login` | 验证码登录 |
+| `POST` | `/api/auth/refresh` | JWT 续签（需认证） |
+| `DELETE` | `/api/auth/account` | 注销账号并删除所有数据（需认证） |
 | `GET` | `/ws` | WebSocket 连接（实时推送） |
 | `POST` | `/api/commands` | 创建指令（语音/文字/图片） |
 | `POST` | `/api/commands/{id}/follow-up` | 追问/补充 |
-| `GET` | `/api/tasks` | 任务列表 |
+| `GET` | `/api/tasks` | 任务列表（支持 ?session_id, ?status 筛选） |
 | `GET` | `/api/tasks/{id}` | 任务详情 |
 | `POST` | `/api/tasks/{id}/confirm` | 确认高风险操作 |
 | `POST` | `/api/tasks/{id}/cancel` | 取消任务 |

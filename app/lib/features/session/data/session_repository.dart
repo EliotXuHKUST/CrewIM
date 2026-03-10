@@ -5,6 +5,7 @@ import '../../../core/storage/session_dao.dart';
 import '../../../core/storage/message_dao.dart';
 import '../../../core/storage/task_dao.dart';
 import '../../../core/storage/sync_queue_dao.dart';
+import '../../../core/network/api_client.dart';
 
 /// Local-first repository: writes go to local DB first, then queue for sync.
 /// Reads always come from local DB for instant UI.
@@ -87,7 +88,13 @@ class SessionRepository {
     return Message.fromMap(msg);
   }
 
-  Future<Message> addAssistantMessage(String sessionId, String content, {String? taskId}) async {
+  Future<Message> addAssistantMessage(
+    String sessionId,
+    String content, {
+    String? taskId,
+    MessageType type = MessageType.text,
+    Map<String, dynamic>? metadata,
+  }) async {
     final now = DateTime.now().toUtc().toIso8601String();
     final id = _generateId();
     final msg = {
@@ -96,11 +103,29 @@ class SessionRepository {
       'role': 'assistant',
       'content': content,
       'task_id': taskId,
+      'type': type.value,
+      'metadata': metadata != null ? jsonEncode(metadata) : null,
       'created_at': now,
       'synced': 1,
     };
     await _messageDao.insert(msg);
     return Message.fromMap(msg);
+  }
+
+  Future<void> followUp(String taskId, String text) async {
+    await apiClient.followUp(taskId, text);
+  }
+
+  Future<void> confirmTask(String taskId) async {
+    await apiClient.confirmTask(taskId);
+  }
+
+  Future<void> cancelTask(String taskId) async {
+    await apiClient.cancelTask(taskId);
+  }
+
+  Future<void> retryTask(String taskId) async {
+    await apiClient.retryTask(taskId);
   }
 
   // ── Tasks ──

@@ -1,6 +1,19 @@
 import 'dart:convert';
 import 'dart:io';
 import '../config/env.dart';
+import '../storage/auth_storage.dart';
+
+class ApiException implements Exception {
+  final int statusCode;
+  final String message;
+  ApiException(this.statusCode, this.message);
+
+  @override
+  String toString() => message;
+
+  bool get isUnauthorized => statusCode == 401;
+  bool get isRateLimited => statusCode == 429;
+}
 
 class ApiClient {
   String? _token;
@@ -16,10 +29,11 @@ class ApiClient {
     String path, {
     Map<String, dynamic>? body,
     Map<String, String>? query,
+    bool retry401 = true,
   }) async {
     final uri = Uri.parse('${Env.apiBaseUrl}$path').replace(queryParameters: query);
     final client = HttpClient();
-    client.connectionTimeout = const Duration(seconds: 10);
+    client.connectionTimeout = const Duration(seconds: 15);
 
     try {
       late HttpClientRequest request;
@@ -47,15 +61,66 @@ class ApiClient {
       final response = await request.close();
       final responseBody = await response.transform(utf8.decoder).join();
 
+      if (response.statusCode == 401 && retry401) {
+        final refreshed = await _tryRefreshToken();
+        if (refreshed) {
+          return _request(method, path, body: body, query: query, retry401: false);
+        }
+        await _handleLogout();
+        throw ApiException(401, '登录已过期，请重新登录');
+      }
+
       if (response.statusCode >= 400) {
-        throw HttpException('HTTP ${response.statusCode}: $responseBody');
+        String errorMsg = '请求失败';
+        try {
+          final decoded = jsonDecode(responseBody) as Map<String, dynamic>;
+          errorMsg = decoded['error'] as String? ?? errorMsg;
+        } catch (_) {}
+        throw ApiException(response.statusCode, errorMsg);
       }
 
       if (responseBody.isEmpty) return {};
       return jsonDecode(responseBody) as Map<String, dynamic>;
+    } on SocketException {
+      throw ApiException(0, '网络连接失败，请检查网络');
+    } on HttpException catch (e) {
+      throw ApiException(0, e.message);
     } finally {
       client.close();
     }
+  }
+
+  Future<bool> _tryRefreshToken() async {
+    if (_token == null) return false;
+    try {
+      final uri = Uri.parse('${Env.apiBaseUrl}/api/auth/refresh');
+      final client = HttpClient();
+      client.connectionTimeout = const Duration(seconds: 10);
+
+      final request = await client.postUrl(uri);
+      request.headers.set('Content-Type', 'application/json');
+      request.headers.set('Authorization', 'Bearer $_token');
+
+      final response = await request.close();
+      final responseBody = await response.transform(utf8.decoder).join();
+      client.close();
+
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(responseBody) as Map<String, dynamic>;
+        final newToken = decoded['token'] as String?;
+        if (newToken != null) {
+          _token = newToken;
+          await AuthStorage.saveToken(newToken);
+          return true;
+        }
+      }
+    } catch (_) {}
+    return false;
+  }
+
+  Future<void> _handleLogout() async {
+    _token = null;
+    await AuthStorage.clear();
   }
 
   // ── Auth ──
@@ -73,6 +138,10 @@ class ApiClient {
       _token = result['token'] as String;
     }
     return result;
+  }
+
+  Future<Map<String, dynamic>> deleteMyAccount() async {
+    return _request('DELETE', '/api/auth/account');
   }
 
   // ── Sessions ──
@@ -154,11 +223,13 @@ class ApiClient {
       final responseBody = await response.transform(utf8.decoder).join();
 
       if (response.statusCode >= 400) {
-        throw HttpException('HTTP ${response.statusCode}: $responseBody');
+        throw ApiException(response.statusCode, 'Upload failed');
       }
 
       if (responseBody.isEmpty) return {};
       return jsonDecode(responseBody) as Map<String, dynamic>;
+    } on SocketException {
+      throw ApiException(0, '网络连接失败');
     } finally {
       request.close();
     }
@@ -170,9 +241,10 @@ class ApiClient {
 
   // ── Tasks ──
 
-  Future<Map<String, dynamic>> getTasks({String? status, int page = 1, int limit = 20}) async {
+  Future<Map<String, dynamic>> getTasks({String? status, String? sessionId, int page = 1, int limit = 20}) async {
     final query = <String, String>{'page': '$page', 'limit': '$limit'};
     if (status != null) query['status'] = status;
+    if (sessionId != null) query['session_id'] = sessionId;
     return _request('GET', '/api/tasks', query: query);
   }
 

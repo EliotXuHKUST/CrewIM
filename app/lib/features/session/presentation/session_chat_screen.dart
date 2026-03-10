@@ -8,6 +8,7 @@ import '../domain/session_entity.dart';
 import '../domain/message_entity.dart';
 import '../../command/presentation/widgets/chat_input_bar.dart';
 import 'widgets/chat_message_bubble.dart';
+import 'widgets/task_cards.dart';
 import 'widgets/scene_cards.dart';
 import 'widgets/nav_drawer.dart';
 
@@ -30,6 +31,12 @@ class _SessionChatScreenState extends State<SessionChatScreen> {
   List<Session> _allSessions = [];
   List<Message> _messages = [];
   bool _loading = true;
+
+  // Pending confirmation tasks (for the top banner)
+  List<_PendingTask> _pendingTasks = [];
+
+  // Follow-up state
+  String? _followUpTaskId;
 
   @override
   void initState() {
@@ -68,6 +75,9 @@ class _SessionChatScreenState extends State<SessionChatScreen> {
       final messages = _currentSessionId != null
           ? await _repo.getMessages(_currentSessionId!)
           : <Message>[];
+
+      _rebuildPendingTasks(messages);
+
       if (mounted) {
         setState(() {
           _allSessions = allSessions;
@@ -83,6 +93,31 @@ class _SessionChatScreenState extends State<SessionChatScreen> {
     }
   }
 
+  void _rebuildPendingTasks(List<Message> messages) {
+    final pending = <_PendingTask>[];
+    final confirmedIds = <String>{};
+
+    for (final m in messages.reversed) {
+      if (m.taskId == null) continue;
+      if (m.type == MessageType.taskWaitingConfirm) {
+        final confirmed = m.metadata?['confirmed'] as bool? ?? false;
+        if (confirmed) {
+          confirmedIds.add(m.taskId!);
+        } else if (!confirmedIds.contains(m.taskId!)) {
+          pending.add(_PendingTask(
+            taskId: m.taskId!,
+            understanding: m.metadata?['understanding'] as String? ?? m.content,
+          ));
+        }
+      }
+      if (m.type == MessageType.taskCompleted ||
+          m.type == MessageType.taskFailed) {
+        confirmedIds.add(m.taskId!);
+      }
+    }
+    _pendingTasks = pending.reversed.toList();
+  }
+
   Future<void> _handleWsEvent(Map<String, dynamic> event) async {
     final type = event['type'] as String?;
     if (type == null || type == 'auth_ok') return;
@@ -93,41 +128,202 @@ class _SessionChatScreenState extends State<SessionChatScreen> {
     final taskSessionId = task['sessionId'] as String? ?? task['session_id'] as String?;
     if (taskSessionId != null && taskSessionId != _currentSessionId) return;
 
-    final String content;
+    final taskId = task['id'] as String?;
+
     switch (type) {
       case 'task_understanding':
-        content = '正在理解：${task['understanding'] ?? '...'}';
+        final understanding = task['understanding'] as String? ?? '...';
+        await _addTypedMessage(
+          content: understanding,
+          taskId: taskId,
+          type: MessageType.taskUnderstanding,
+          metadata: {'understanding': understanding},
+        );
+
       case 'task_progress':
-        content = task['progress'] as String? ?? '执行中…';
+        final progress = task['progress'] as String? ?? event['message'] as String? ?? '执行中…';
+        final step = event['step'] as String? ?? progress;
+        await _addTypedMessage(
+          content: progress,
+          taskId: taskId,
+          type: MessageType.taskProgress,
+          metadata: {'step': step},
+        );
+
       case 'task_completed':
         final result = task['result'];
+        String resultTitle = '执行结果';
+        String resultBody = '任务已完成';
         if (result is Map) {
-          content = '已完成：${result['body'] ?? result['summary'] ?? ''}';
-        } else {
-          content = '任务已完成';
+          resultTitle = (result['title'] as String?) ?? '执行结果';
+          resultBody = (result['body'] as String?) ?? (result['summary'] as String?) ?? '任务已完成';
         }
+        await _addTypedMessage(
+          content: resultBody,
+          taskId: taskId,
+          type: MessageType.taskCompleted,
+          metadata: {'resultTitle': resultTitle, 'resultBody': resultBody},
+        );
+
       case 'task_failed':
-        content = '执行失败：${task['error'] ?? '未知错误'}';
+        final error = task['error'] as String? ?? event['reason'] as String? ?? '未知错误';
+        await _addTypedMessage(
+          content: error,
+          taskId: taskId,
+          type: MessageType.taskFailed,
+          metadata: {'error': error},
+        );
+
       case 'task_waiting_confirm':
-        content = '需要确认：${task['understanding'] ?? ''}';
+        final understanding = task['understanding'] as String? ?? '';
+        final confirmMsg = task['confirmMessage'] as String?
+            ?? task['confirmation_message'] as String?
+            ?? understanding;
+        await _addTypedMessage(
+          content: confirmMsg,
+          taskId: taskId,
+          type: MessageType.taskWaitingConfirm,
+          metadata: {
+            'understanding': understanding,
+            'confirmMessage': confirmMsg,
+            'confirmed': false,
+          },
+        );
+        if (taskId != null) {
+          setState(() {
+            _pendingTasks.add(_PendingTask(taskId: taskId, understanding: understanding));
+          });
+        }
+
       default:
         return;
     }
+  }
 
-    if (content.isNotEmpty && _currentSessionId != null) {
-      final msg = await _repo.addAssistantMessage(
-        _currentSessionId!,
-        content,
-        taskId: task['id'] as String?,
-      );
-      if (mounted) {
-        setState(() => _messages.add(msg));
-        _scrollToBottom();
-      }
+  Future<void> _addTypedMessage({
+    required String content,
+    String? taskId,
+    required MessageType type,
+    Map<String, dynamic>? metadata,
+  }) async {
+    if (_currentSessionId == null) return;
+
+    final msg = await _repo.addAssistantMessage(
+      _currentSessionId!,
+      content,
+      taskId: taskId,
+      type: type,
+      metadata: metadata,
+    );
+    if (mounted) {
+      setState(() => _messages.add(msg));
+      _scrollToBottom();
     }
   }
 
+  Future<void> _handleTaskAction(String taskId, String action, {String? text}) async {
+    switch (action) {
+      case 'confirm':
+        try {
+          await _repo.confirmTask(taskId);
+          _markConfirmResolved(taskId);
+          await _addTypedMessage(
+            content: '已确认，开始执行',
+            taskId: taskId,
+            type: MessageType.taskProgress,
+            metadata: {'step': '任务已确认，正在执行…'},
+          );
+        } catch (e) {
+          debugPrint('Confirm failed: $e');
+        }
+
+      case 'cancel':
+        try {
+          await _repo.cancelTask(taskId);
+          _markConfirmResolved(taskId);
+          await _addTypedMessage(
+            content: '已取消',
+            taskId: taskId,
+            type: MessageType.taskFailed,
+            metadata: {'error': '任务已取消'},
+          );
+        } catch (e) {
+          debugPrint('Cancel failed: $e');
+        }
+
+      case 'retry':
+        try {
+          await _repo.retryTask(taskId);
+          await _addTypedMessage(
+            content: '正在重试…',
+            taskId: taskId,
+            type: MessageType.taskProgress,
+            metadata: {'step': '重新理解指令中…'},
+          );
+        } catch (e) {
+          debugPrint('Retry failed: $e');
+        }
+
+      case 'follow_up':
+        setState(() => _followUpTaskId = taskId);
+
+      case 'to_doc':
+        if (text != null) {
+          await _sendFollowUp(taskId, '请把以下结果整理成文档：\n$text');
+        }
+    }
+  }
+
+  void _markConfirmResolved(String taskId) {
+    setState(() {
+      _pendingTasks.removeWhere((p) => p.taskId == taskId);
+      // Mark the confirm card as resolved
+      for (int i = _messages.length - 1; i >= 0; i--) {
+        final m = _messages[i];
+        if (m.taskId == taskId && m.type == MessageType.taskWaitingConfirm) {
+          final updated = Message(
+            id: m.id,
+            sessionId: m.sessionId,
+            role: m.role,
+            content: m.content,
+            taskId: m.taskId,
+            type: m.type,
+            metadata: {...?m.metadata, 'confirmed': true},
+            createdAt: m.createdAt,
+            synced: m.synced,
+          );
+          _messages[i] = updated;
+          break;
+        }
+      }
+    });
+  }
+
+  Future<void> _sendFollowUp(String taskId, String text) async {
+    if (_currentSessionId == null) return;
+
+    final msg = await _repo.addUserMessage(_currentSessionId!, text);
+    setState(() {
+      _messages.add(msg);
+      _followUpTaskId = null;
+    });
+    _scrollToBottom();
+
+    try {
+      await _repo.followUp(taskId, text);
+    } catch (e) {
+      debugPrint('Follow-up failed: $e');
+    }
+
+    _loadAll();
+  }
+
   Future<void> _sendText(String text) async {
+    if (_followUpTaskId != null) {
+      await _sendFollowUp(_followUpTaskId!, text);
+      return;
+    }
+
     if (_currentSessionId == null) return;
 
     final msg = await _repo.addUserMessage(_currentSessionId!, text);
@@ -169,6 +365,8 @@ class _SessionChatScreenState extends State<SessionChatScreen> {
       _currentSessionId = sessionId;
       _messages = [];
       _loading = true;
+      _followUpTaskId = null;
+      _pendingTasks = [];
     });
     await _loadAll();
   }
@@ -237,6 +435,7 @@ class _SessionChatScreenState extends State<SessionChatScreen> {
         child: Column(
           children: [
             _buildTopBar(textColor, isDark),
+            if (_pendingTasks.isNotEmpty) _buildPendingBanner(isDark),
             Expanded(
               child: _loading
                   ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
@@ -244,13 +443,20 @@ class _SessionChatScreenState extends State<SessionChatScreen> {
                       ? SceneCards(onTap: _sendText)
                       : _buildMessageList(),
             ),
-            ChatInputBar(
-              onSubmitText: _sendText,
-              onSubmitMedia: ({String? audioPath, List<String>? imagePaths}) {
-                _sendMedia(audioPath: audioPath, imagePaths: imagePaths);
-              },
-              onFile: () {},
-            ),
+            if (_followUpTaskId != null)
+              FollowUpInput(
+                taskId: _followUpTaskId!,
+                onSubmit: (text) => _sendFollowUp(_followUpTaskId!, text),
+                onCancel: () => setState(() => _followUpTaskId = null),
+              )
+            else
+              ChatInputBar(
+                onSubmitText: _sendText,
+                onSubmitMedia: ({String? audioPath, List<String>? imagePaths}) {
+                  _sendMedia(audioPath: audioPath, imagePaths: imagePaths);
+                },
+                onFile: () {},
+              ),
           ],
         ),
       ),
@@ -294,6 +500,64 @@ class _SessionChatScreenState extends State<SessionChatScreen> {
     );
   }
 
+  Widget _buildPendingBanner(bool isDark) {
+    final count = _pendingTasks.length;
+    final first = _pendingTasks.first;
+
+    return GestureDetector(
+      onTap: () => _scrollToPendingTask(first.taskId),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1C1A12) : const Color(0xFFFEFCE8),
+          border: Border(
+            bottom: BorderSide(
+              color: AppColors.warning.withValues(alpha: 0.2),
+              width: 0.5,
+            ),
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, size: 18, color: AppColors.warning),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                count == 1
+                    ? '1 项待拍板：${first.understanding}'
+                    : '$count 项待拍板',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.warning,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: AppColors.warning),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _scrollToPendingTask(String taskId) {
+    for (int i = _messages.length - 1; i >= 0; i--) {
+      if (_messages[i].taskId == taskId &&
+          _messages[i].type == MessageType.taskWaitingConfirm) {
+        final offset = i * 80.0; // approximate
+        _scrollController.animateTo(
+          offset.clamp(0, _scrollController.position.maxScrollExtent),
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+        break;
+      }
+    }
+  }
+
   bool _shouldShowTimestamp(int index) {
     if (index == 0) return true;
     final prev = _messages[index - 1].createdAt;
@@ -310,8 +574,15 @@ class _SessionChatScreenState extends State<SessionChatScreen> {
         return ChatMessageBubble(
           message: _messages[index],
           showTimestamp: _shouldShowTimestamp(index),
+          onTaskAction: _handleTaskAction,
         );
       },
     );
   }
+}
+
+class _PendingTask {
+  final String taskId;
+  final String understanding;
+  _PendingTask({required this.taskId, required this.understanding});
 }

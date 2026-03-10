@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/storage/auth_storage.dart';
+import '../../../core/storage/local_database.dart';
 import 'account_edit_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -74,7 +75,59 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  Future<void> _deleteAccount(String id) async {
+  Future<void> _deleteUserAccount() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('注销账号'),
+        content: const Text(
+          '注销后所有数据将被永久删除，包括会话记录、任务历史、绑定账号等。此操作不可撤销。',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('取消')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('确认注销', style: TextStyle(color: AppColors.error)),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true || !mounted) return;
+
+    final doubleConfirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('最终确认'),
+        content: const Text('真的要永久删除账号和所有数据吗？'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('我再想想')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('永久删除', style: TextStyle(color: AppColors.error, fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+    );
+    if (doubleConfirm != true || !mounted) return;
+
+    try {
+      await apiClient.deleteMyAccount();
+      await AuthStorage.clear();
+      await LocalDatabase.close();
+      apiClient.clearToken();
+      if (mounted) {
+        Navigator.of(context).pushNamedAndRemoveUntil('/login', (_) => false);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('注销失败: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _deleteThirdPartyAccount(String id) async {
     try {
       await apiClient.deleteAccount(id);
       _accounts.removeWhere((a) => a['id'] == id);
@@ -96,6 +149,45 @@ class _SettingsScreenState extends State<SettingsScreen> {
       MaterialPageRoute(builder: (_) => AccountEditScreen(account: account)),
     );
     if (result == true) _load();
+  }
+
+  void _openFeedback() {
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        final controller = TextEditingController();
+        return AlertDialog(
+          title: const Text('意见反馈'),
+          content: TextField(
+            controller: controller,
+            maxLines: 5,
+            decoration: const InputDecoration(
+              hintText: '请描述你遇到的问题或建议…',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
+            TextButton(
+              onPressed: () {
+                final text = controller.text.trim();
+                if (text.isNotEmpty) {
+                  // Silently send feedback; for MVP we just acknowledge
+                  Navigator.pop(ctx);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('感谢你的反馈！'),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
+              },
+              child: const Text('提交'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -146,7 +238,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         Divider(height: 1, color: isDark ? AppColors.separatorDark : AppColors.separator),
                         _TapRow(
                           label: '退出登录',
-                          labelColor: AppColors.error,
+                          labelColor: AppColors.textSecondary,
                           onTap: _logout,
                         ),
                       ],
@@ -202,18 +294,73 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               textColor: textColor,
                               secondaryColor: secondaryColor,
                               onTap: () => _openEditAccount(_accounts[i]),
-                              onDelete: () => _deleteAccount(_accounts[i]['id'] as String),
+                              onDelete: () => _deleteThirdPartyAccount(_accounts[i]['id'] as String),
                             ),
                           ],
                         ],
                       ),
 
                     const SizedBox(height: 24),
+                    _SectionHeader(title: '支持', color: secondaryColor),
+                    _Card(
+                      color: cardColor,
+                      children: [
+                        _TapRow(
+                          label: '意见反馈',
+                          labelColor: textColor,
+                          trailing: true,
+                          onTap: _openFeedback,
+                        ),
+                        Divider(height: 1, color: isDark ? AppColors.separatorDark : AppColors.separator),
+                        _TapRow(
+                          label: '隐私政策',
+                          labelColor: textColor,
+                          trailing: true,
+                          onTap: () {
+                            // Opens privacy policy - replace URL with real one
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('隐私政策页面开发中'),
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                          },
+                        ),
+                        Divider(height: 1, color: isDark ? AppColors.separatorDark : AppColors.separator),
+                        _TapRow(
+                          label: '用户协议',
+                          labelColor: textColor,
+                          trailing: true,
+                          onTap: () {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('用户协议页面开发中'),
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 24),
                     _SectionHeader(title: '关于', color: secondaryColor),
                     _Card(
                       color: cardColor,
                       children: [
-                        _Row(label: '版本', value: '0.1.0', textColor: textColor, valueColor: secondaryColor),
+                        _Row(label: '版本', value: '1.0.0', textColor: textColor, valueColor: secondaryColor),
+                      ],
+                    ),
+
+                    const SizedBox(height: 24),
+                    _Card(
+                      color: cardColor,
+                      children: [
+                        _TapRow(
+                          label: '注销账号',
+                          labelColor: AppColors.error,
+                          onTap: _deleteUserAccount,
+                        ),
                       ],
                     ),
 
@@ -284,18 +431,25 @@ class _Row extends StatelessWidget {
 class _TapRow extends StatelessWidget {
   final String label;
   final Color labelColor;
+  final bool trailing;
   final VoidCallback onTap;
-  const _TapRow({required this.label, required this.labelColor, required this.onTap});
+  const _TapRow({required this.label, required this.labelColor, this.trailing = false, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return GestureDetector(
       onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        child: Align(
-          alignment: Alignment.centerLeft,
-          child: Text(label, style: TextStyle(fontSize: 15, color: labelColor)),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(label, style: TextStyle(fontSize: 15, color: labelColor)),
+            ),
+            if (trailing)
+              Icon(Icons.chevron_right, size: 18, color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondary),
+          ],
         ),
       ),
     );

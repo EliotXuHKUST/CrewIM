@@ -51,6 +51,13 @@ func (h *AuthHandler) SendCode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if msg := h.CodeStore.CheckRateLimit(req.Phone); msg != "" {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusTooManyRequests)
+		json.NewEncoder(w).Encode(map[string]string{"error": msg})
+		return
+	}
+
 	code := h.CodeStore.Generate(req.Phone)
 
 	if err := h.SMSSender.Send(req.Phone, code); err != nil {
@@ -117,4 +124,56 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		Token: token,
 		User:  userInfo{ID: userID, Phone: phone, Initialized: initialized},
 	})
+}
+
+func (h *AuthHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
+	userID := middleware.GetUserID(r)
+	ctx := context.Background()
+
+	var phone string
+	err := db.Pool.QueryRow(ctx, `SELECT phone FROM users WHERE id = $1`, userID).Scan(&phone)
+	if err != nil {
+		http.Error(w, `{"error":"User not found"}`, http.StatusUnauthorized)
+		return
+	}
+
+	token, err := middleware.SignToken(h.JWTSecret, userID, phone)
+	if err != nil {
+		http.Error(w, `{"error":"Failed to generate token"}`, http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"token": token})
+}
+
+// DeleteAccount permanently deletes the user and all associated data.
+// Required by Apple App Store review guidelines.
+func (h *AuthHandler) DeleteAccount(w http.ResponseWriter, r *http.Request) {
+	userID := middleware.GetUserID(r)
+	ctx := context.Background()
+
+	deleteQueries := []string{
+		`DELETE FROM execution_logs WHERE task_id IN (SELECT id FROM tasks WHERE user_id = $1)`,
+		`DELETE FROM sub_tasks WHERE task_id IN (SELECT id FROM tasks WHERE user_id = $1)`,
+		`DELETE FROM memories WHERE user_id = $1`,
+		`DELETE FROM task_items WHERE user_id = $1`,
+		`DELETE FROM scheduled_jobs WHERE user_id = $1`,
+		`DELETE FROM tasks WHERE user_id = $1`,
+		`DELETE FROM sessions WHERE user_id = $1`,
+		`DELETE FROM user_accounts WHERE user_id = $1`,
+		`DELETE FROM user_rules WHERE user_id = $1`,
+		`DELETE FROM user_profiles WHERE user_id = $1`,
+		`DELETE FROM users WHERE id = $1`,
+	}
+
+	for _, q := range deleteQueries {
+		if _, err := db.Pool.Exec(ctx, q, userID); err != nil {
+			http.Error(w, `{"error":"Failed to delete account data"}`, http.StatusInternalServerError)
+			return
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]bool{"deleted": true})
 }

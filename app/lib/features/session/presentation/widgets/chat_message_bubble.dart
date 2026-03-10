@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/message_entity.dart';
+import 'task_cards.dart';
 
 class ChatMessageBubble extends StatelessWidget {
   final Message message;
   final bool showTimestamp;
+  final TaskAction? onTaskAction;
 
   const ChatMessageBubble({
     super.key,
     required this.message,
     this.showTimestamp = false,
+    this.onTaskAction,
   });
 
   @override
@@ -19,7 +22,12 @@ class ChatMessageBubble extends StatelessWidget {
     return Column(
       children: [
         if (showTimestamp) _buildTimestamp(isDark),
-        message.isUser ? _buildUserBubble(isDark) : _buildAssistantBubble(isDark),
+        if (message.isUser)
+          _buildUserBubble(isDark)
+        else if (message.isTaskCard)
+          TaskMessageCard(message: message, onAction: onTaskAction)
+        else
+          _buildAssistantBubble(isDark),
       ],
     );
   }
@@ -77,14 +85,6 @@ class ChatMessageBubble extends StatelessWidget {
     final textColor = isDark ? AppColors.textPrimaryDark : AppColors.textPrimary;
     final borderColor = isDark ? AppColors.separatorDark : AppColors.separator;
 
-    final content = message.content;
-    final isStatus = content.startsWith('✓') || content.startsWith('✗') || content.startsWith('⚠') || content.contains('执行中');
-
-    Color? statusColor;
-    if (content.startsWith('✓')) statusColor = AppColors.success;
-    if (content.startsWith('✗')) statusColor = AppColors.error;
-    if (content.startsWith('⚠')) statusColor = AppColors.warning;
-
     return Padding(
       padding: const EdgeInsets.only(left: 16, right: 56, top: 4, bottom: 4),
       child: Row(
@@ -104,28 +104,10 @@ class ChatMessageBubble extends StatelessWidget {
                 ),
                 border: Border.all(color: borderColor, width: 0.5),
               ),
-              child: isStatus && statusColor != null
-                  ? Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          width: 6,
-                          height: 6,
-                          decoration: BoxDecoration(color: statusColor, shape: BoxShape.circle),
-                        ),
-                        const SizedBox(width: 8),
-                        Flexible(
-                          child: Text(
-                            content,
-                            style: TextStyle(fontSize: 15, color: textColor, height: 1.5),
-                          ),
-                        ),
-                      ],
-                    )
-                  : Text(
-                      content,
-                      style: TextStyle(fontSize: 15, color: textColor, height: 1.5),
-                    ),
+              child: Text(
+                message.content,
+                style: TextStyle(fontSize: 15, color: textColor, height: 1.5),
+              ),
             ),
           ),
         ],

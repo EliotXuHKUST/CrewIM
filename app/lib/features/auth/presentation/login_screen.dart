@@ -45,7 +45,7 @@ class _LoginScreenState extends State<LoginScreen> {
         });
       });
     } catch (e) {
-      setState(() => _error = '发送失败，请重试');
+      setState(() => _error = e.toString());
     }
   }
 
@@ -190,7 +190,14 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
 
-              const Spacer(flex: 5),
+              const Spacer(flex: 4),
+
+              Text(
+                '登录即表示同意《用户协议》和《隐私政策》',
+                style: TextStyle(fontSize: 11, color: secondaryColor),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
             ],
           ),
         ),
