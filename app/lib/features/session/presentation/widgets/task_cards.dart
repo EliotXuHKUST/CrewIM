@@ -18,16 +18,23 @@ class TaskMessageCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final card = switch (message.type) {
+      MessageType.taskUnderstanding => _UnderstandingCard(message: message, onAction: onAction),
+      MessageType.taskProgress => _ProgressCard(message: message),
+      MessageType.taskWaitingConfirm => _ConfirmCard(message: message, onAction: onAction),
+      MessageType.taskCompleted => _ResultCard(message: message, onAction: onAction),
+      MessageType.taskFailed => _ErrorCard(message: message, onAction: onAction),
+      _ => const SizedBox.shrink() as Widget,
+    };
+
     return Padding(
       padding: const EdgeInsets.only(left: 16, right: 40, top: 4, bottom: 4),
-      child: switch (message.type) {
-        MessageType.taskUnderstanding => _UnderstandingCard(message: message, onAction: onAction),
-        MessageType.taskProgress => _ProgressCard(message: message),
-        MessageType.taskWaitingConfirm => _ConfirmCard(message: message, onAction: onAction),
-        MessageType.taskCompleted => _ResultCard(message: message, onAction: onAction),
-        MessageType.taskFailed => _ErrorCard(message: message, onAction: onAction),
-        _ => const SizedBox.shrink(),
-      },
+      child: GestureDetector(
+        onDoubleTap: message.taskId != null
+            ? () => onAction?.call(message.taskId!, 'detail')
+            : null,
+        child: card,
+      ),
     );
   }
 }
@@ -313,6 +320,14 @@ class _ResultCard extends StatelessWidget {
                   onTap: () {
                     HapticFeedback.lightImpact();
                     onAction?.call(taskId, 'to_doc', text: resultBody);
+                  },
+                ),
+                _SmallAction(
+                  icon: Icons.alarm_rounded,
+                  label: '设提醒',
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                    onAction?.call(taskId, 'remind', text: resultTitle);
                   },
                 ),
               ],

@@ -92,6 +92,12 @@ func (s *UnderstandingService) Understand(taskID string) (*model.UnderstandingRe
 		Type:    "task_understanding",
 		TaskID:  taskID,
 		Message: result.Understanding,
+		Task: &model.TaskBrief{
+			ID:            taskID,
+			InputText:     inputText,
+			Understanding: result.Understanding,
+			Status:        string(nextStatus),
+		},
 	})
 
 	if nextStatus == "waiting_confirm" {
@@ -100,9 +106,15 @@ func (s *UnderstandingService) Understand(taskID string) (*model.UnderstandingRe
 			msg = result.Understanding
 		}
 		s.Hub.Send(userID, model.PushEvent{
-			Type:    "task_confirmation_needed",
+			Type:    "task_waiting_confirm",
 			TaskID:  taskID,
 			Message: msg,
+			Task: &model.TaskBrief{
+				ID:            taskID,
+				InputText:     inputText,
+				Understanding: result.Understanding,
+				Status:        "waiting_confirm",
+			},
 		})
 	}
 

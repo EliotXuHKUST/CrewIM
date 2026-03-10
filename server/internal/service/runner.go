@@ -93,6 +93,10 @@ func (r *AgentRunner) Run(cfg RunConfig) (*RunResult, error) {
 					TaskID:  cfg.TaskID,
 					Message: fmt.Sprintf("正在执行：%s", block.Name),
 					Step:    cfg.SubTaskID,
+					Task: &model.TaskBrief{
+						ID:     cfg.TaskID,
+						Status: "executing",
+					},
 				})
 
 				results = append(results, toolCallResult{id: block.ID, name: block.Name, result: result})

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 import '../domain/session_entity.dart';
 import '../domain/message_entity.dart';
 import '../../../core/storage/session_dao.dart';
@@ -144,9 +145,14 @@ class SessionRepository {
 
   // ── Helpers ──
 
-  String _generateId() {
-    final now = DateTime.now().microsecondsSinceEpoch;
-    final random = now.hashCode.toRadixString(36);
-    return '${now.toRadixString(36)}-$random';
+  static String _generateId() {
+    final r = Random.secure();
+    final bytes = List<int>.generate(16, (_) => r.nextInt(256));
+    bytes[6] = (bytes[6] & 0x0f) | 0x40; // version 4
+    bytes[8] = (bytes[8] & 0x3f) | 0x80; // variant 1
+    final hex = bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+    return '${hex.substring(0, 8)}-${hex.substring(8, 12)}-'
+        '${hex.substring(12, 16)}-${hex.substring(16, 20)}-'
+        '${hex.substring(20)}';
   }
 }

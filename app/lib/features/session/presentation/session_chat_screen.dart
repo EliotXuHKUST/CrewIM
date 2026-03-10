@@ -120,19 +120,21 @@ class _SessionChatScreenState extends State<SessionChatScreen> {
 
   Future<void> _handleWsEvent(Map<String, dynamic> event) async {
     final type = event['type'] as String?;
-    if (type == null || type == 'auth_ok') return;
+    if (type == null || type == 'auth_ok' || type == 'auth_error') return;
 
     final task = event['task'] as Map<String, dynamic>?;
-    if (task == null) return;
+    final taskId = task?['id'] as String? ?? event['taskId'] as String?;
+    if (taskId == null) return;
 
-    final taskSessionId = task['sessionId'] as String? ?? task['session_id'] as String?;
+    final taskSessionId = task?['sessionId'] as String? ?? task?['session_id'] as String?;
     if (taskSessionId != null && taskSessionId != _currentSessionId) return;
 
-    final taskId = task['id'] as String?;
+    final message = event['message'] as String? ?? '';
 
     switch (type) {
       case 'task_understanding':
-        final understanding = task['understanding'] as String? ?? '...';
+        final understanding = task?['understanding'] as String? ?? message;
+        if (understanding.isEmpty) return;
         await _addTypedMessage(
           content: understanding,
           taskId: taskId,
@@ -141,7 +143,7 @@ class _SessionChatScreenState extends State<SessionChatScreen> {
         );
 
       case 'task_progress':
-        final progress = task['progress'] as String? ?? event['message'] as String? ?? '执行中…';
+        final progress = message.isNotEmpty ? message : '执行中…';
         final step = event['step'] as String? ?? progress;
         await _addTypedMessage(
           content: progress,
@@ -151,10 +153,10 @@ class _SessionChatScreenState extends State<SessionChatScreen> {
         );
 
       case 'task_completed':
-        final result = task['result'];
+        final result = event['result'] as Map<String, dynamic>? ?? task?['result'] as Map<String, dynamic>?;
         String resultTitle = '执行结果';
         String resultBody = '任务已完成';
-        if (result is Map) {
+        if (result != null) {
           resultTitle = (result['title'] as String?) ?? '执行结果';
           resultBody = (result['body'] as String?) ?? (result['summary'] as String?) ?? '任务已完成';
         }
@@ -166,7 +168,7 @@ class _SessionChatScreenState extends State<SessionChatScreen> {
         );
 
       case 'task_failed':
-        final error = task['error'] as String? ?? event['reason'] as String? ?? '未知错误';
+        final error = event['reason'] as String? ?? task?['error'] as String? ?? '未知错误';
         await _addTypedMessage(
           content: error,
           taskId: taskId,
@@ -175,10 +177,8 @@ class _SessionChatScreenState extends State<SessionChatScreen> {
         );
 
       case 'task_waiting_confirm':
-        final understanding = task['understanding'] as String? ?? '';
-        final confirmMsg = task['confirmMessage'] as String?
-            ?? task['confirmation_message'] as String?
-            ?? understanding;
+        final understanding = task?['understanding'] as String? ?? message;
+        final confirmMsg = message.isNotEmpty ? message : understanding;
         await _addTypedMessage(
           content: confirmMsg,
           taskId: taskId,
@@ -189,11 +189,9 @@ class _SessionChatScreenState extends State<SessionChatScreen> {
             'confirmed': false,
           },
         );
-        if (taskId != null) {
-          setState(() {
-            _pendingTasks.add(_PendingTask(taskId: taskId, understanding: understanding));
-          });
-        }
+        setState(() {
+          _pendingTasks.add(_PendingTask(taskId: taskId, understanding: understanding));
+        });
 
       default:
         return;
@@ -270,6 +268,16 @@ class _SessionChatScreenState extends State<SessionChatScreen> {
       case 'to_doc':
         if (text != null) {
           await _sendFollowUp(taskId, '请把以下结果整理成文档：\n$text');
+        }
+
+      case 'remind':
+        if (text != null) {
+          await _sendFollowUp(taskId, '请帮我设一个提醒：关于"$text"');
+        }
+
+      case 'detail':
+        if (mounted) {
+          Navigator.pushNamed(context, '/task/$taskId');
         }
     }
   }

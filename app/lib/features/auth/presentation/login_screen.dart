@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/storage/auth_storage.dart';
+import 'auth_gate.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -68,12 +69,13 @@ class _LoginScreenState extends State<LoginScreen> {
             phone: user['phone'] as String? ?? phone,
           );
         }
+        syncEngine.start();
         if (mounted) {
           Navigator.of(context).pushNamedAndRemoveUntil('/', (_) => false);
         }
       }
     } catch (e) {
-      setState(() => _error = '验证码错误或已过期');
+      setState(() => _error = e.toString());
     } finally {
       if (mounted) setState(() => _loading = false);
     }

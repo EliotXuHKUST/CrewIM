@@ -82,6 +82,11 @@ func (o *Orchestrator) Execute(taskID string) {
 		Type:   "task_completed",
 		TaskID: taskID,
 		Result: &model.ResultCard{Title: understanding, Body: combined},
+		Task: &model.TaskBrief{
+			ID:            taskID,
+			Understanding: understanding,
+			Status:        "completed",
+		},
 	})
 }
 
@@ -94,5 +99,9 @@ func (o *Orchestrator) failTask(taskID, userID, reason string) {
 		Type:   "task_failed",
 		TaskID: taskID,
 		Reason: reason,
+		Task: &model.TaskBrief{
+			ID:     taskID,
+			Status: "failed",
+		},
 	})
 }
