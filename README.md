@@ -145,7 +145,7 @@
 docker compose up -d
 ```
 
-PostgreSQL (pgvector) 监听 `5432`，Redis 监听 `6379`。
+PostgreSQL (pgvector) 监听 `5433`（宿主机），Redis 监听 `6379`。
 
 ### 2. 配置并启动服务端
 
@@ -163,7 +163,7 @@ go run ./cmd/server
 | 变量 | 默认值 | 说明 |
 |------|--------|------|
 | `PORT` | `3000` | 服务端口 |
-| `DATABASE_URL` | `postgres://...localhost:5432/command_center` | PostgreSQL 连接串 |
+| `DATABASE_URL` | `postgres://...localhost:5433/command_center` | PostgreSQL 连接串（docker-compose 映射到 5433） |
 | `REDIS_URL` | `redis://localhost:6379` | Redis 地址 |
 | `JWT_SECRET` | `dev-secret-change-me` | JWT 签名密钥 (生产环境必须替换) |
 | `OPENROUTER_API_KEY` | — | OpenRouter API Key |
@@ -249,7 +249,22 @@ flutter build ios \
 | `task_progress` | 执行步骤更新 | 进度卡片 (旋转动画) |
 | `task_waiting_confirm` | 高风险需确认 | 确认卡片 (确认/取消按钮) + 待拍板 banner |
 | `task_completed` | 执行完成 | 结果卡片 (复制/继续处理/转文档) |
-| `task_failed` | 执行失败 | 错误卡片 (重试/补充信息) |
+| `task_failed` | 执行失败 | 错误卡片 (重试/补充信息) + AI 建议 |
+| `session_updated` | 会话自动命名 | 更新侧栏标题 |
+
+## Agent 工具
+
+执行层通过工具注册中心调用以下能力，Claude 根据任务自动选择：
+
+| 工具 | 说明 |
+|------|------|
+| `generate_document` | 生成文档、方案、简报、清单（Claude 驱动） |
+| `send_email` | 使用用户绑定的邮箱 SMTP 发送邮件 |
+| `store_memory` | 存储关键信息到长期记忆 |
+| `search_memory` | 搜索历史记忆中的相关信息 |
+| `set_reminder` | 设定一次性或周期性提醒（写入 scheduled_jobs） |
+| `create_task_item` | 创建管理事项（待办、跟进任务） |
+| `list_task_items` | 查询当前管理事项列表 |
 
 ## 技术栈
 

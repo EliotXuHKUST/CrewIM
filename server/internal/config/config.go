@@ -25,7 +25,7 @@ type Config struct {
 func Load() *Config {
 	return &Config{
 		Port:              getEnv("PORT", "3000"),
-		DatabaseURL:       getEnv("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/command_center?sslmode=disable"),
+		DatabaseURL:       getEnv("DATABASE_URL", "postgres://postgres:postgres@localhost:5433/command_center?sslmode=disable"),
 		RedisURL:          getEnv("REDIS_URL", "redis://localhost:6379"),
 		JWTSecret:         getEnv("JWT_SECRET", "dev-secret-change-me"),
 		OpenRouterKey:     getEnv("OPENROUTER_API_KEY", ""),

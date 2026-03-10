@@ -91,17 +91,33 @@ func (o *Orchestrator) Execute(taskID string) {
 }
 
 func (o *Orchestrator) failTask(taskID, userID, reason string) {
+	suggestion := o.generateFailSuggestion(reason)
+	fullError := reason
+	if suggestion != "" {
+		fullError = reason + "\n\n💡 建议：" + suggestion
+	}
+
 	db.Pool.Exec(context.Background(),
 		`UPDATE tasks SET status = 'failed', error = $1, updated_at = NOW() WHERE id = $2`,
-		reason, taskID)
+		fullError, taskID)
 
 	o.Hub.Send(userID, model.PushEvent{
 		Type:   "task_failed",
 		TaskID: taskID,
-		Reason: reason,
+		Reason: fullError,
 		Task: &model.TaskBrief{
 			ID:     taskID,
 			Status: "failed",
 		},
 	})
+}
+
+func (o *Orchestrator) generateFailSuggestion(reason string) string {
+	resp, err := o.Runner.Claude.CallSimple(
+		"你是一个管理助手。任务执行失败了，请用一句话给出最实用的下一步建议。不要重复错误原因，只说建议。",
+		"失败原因："+reason, 100)
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(resp)
 }
