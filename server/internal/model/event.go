@@ -1,21 +1,24 @@
 package model
 
 type PushEvent struct {
-	Type    string      `json:"type"`
-	TaskID  string      `json:"taskId,omitempty"`
-	Task    *TaskBrief  `json:"task,omitempty"`
-	Message string      `json:"message,omitempty"`
-	Result  *ResultCard `json:"result,omitempty"`
-	Reason  string      `json:"reason,omitempty"`
-	Step    string      `json:"step,omitempty"`
+	Type      string      `json:"type"`
+	TaskID    string      `json:"taskId,omitempty"`
+	Task      *TaskBrief  `json:"task,omitempty"`
+	Message   string      `json:"message,omitempty"`
+	Result    *ResultCard `json:"result,omitempty"`
+	Reason    string      `json:"reason,omitempty"`
+	Step      string      `json:"step,omitempty"`
+	SessionID string      `json:"sessionId,omitempty"`
+	Title     string      `json:"title,omitempty"`
 }
 
 type TaskBrief struct {
-	ID            string `json:"id"`
-	InputText     string `json:"inputText"`
-	Understanding string `json:"understanding"`
-	Status        string `json:"status"`
-	CreatedAt     string `json:"createdAt"`
+	ID            string           `json:"id"`
+	InputText     string           `json:"inputText"`
+	Understanding string           `json:"understanding"`
+	Status        string           `json:"status"`
+	CreatedAt     string           `json:"createdAt"`
+	Steps         []ExecutionStep  `json:"steps,omitempty"`
 }
 
 type ResultCard struct {

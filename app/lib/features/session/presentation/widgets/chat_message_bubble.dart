@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/markdown_content.dart';
 import '../../domain/message_entity.dart';
 import 'task_cards.dart';
 
@@ -104,10 +105,7 @@ class ChatMessageBubble extends StatelessWidget {
                 ),
                 border: Border.all(color: borderColor, width: 0.5),
               ),
-              child: Text(
-                message.content,
-                style: TextStyle(fontSize: 15, color: textColor, height: 1.5),
-              ),
+              child: MarkdownContent(data: message.content, textColor: textColor),
             ),
           ),
         ],

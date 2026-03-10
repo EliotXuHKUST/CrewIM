@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/markdown_content.dart';
 import '../../domain/message_entity.dart';
 
 typedef TaskAction = void Function(String taskId, String action, {String? text});
@@ -54,6 +55,7 @@ class _UnderstandingCard extends StatelessWidget {
     final borderColor = isDark ? AppColors.separatorDark : AppColors.separator;
 
     final understanding = message.metadata?['understanding'] as String? ?? message.content;
+    final steps = message.metadata?['steps'] as List<dynamic>?;
 
     return Container(
       width: double.infinity,
@@ -81,6 +83,41 @@ class _UnderstandingCard extends StatelessWidget {
             understanding,
             style: TextStyle(fontSize: 15, color: textColor, height: 1.5),
           ),
+          if (steps != null && steps.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Icon(Icons.route_outlined, size: 14, color: secondaryColor),
+                const SizedBox(width: 5),
+                Text(
+                  '我准备这样做',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: secondaryColor),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            ...steps.asMap().entries.map((e) {
+              final desc = e.value is Map ? (e.value['description'] ?? '') : e.value.toString();
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 3),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${e.key + 1}. ',
+                      style: TextStyle(fontSize: 13, color: secondaryColor, height: 1.5),
+                    ),
+                    Expanded(
+                      child: Text(
+                        desc.toString(),
+                        style: TextStyle(fontSize: 13, color: textColor, height: 1.5),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }),
+          ],
         ],
       ),
     );
@@ -279,10 +316,7 @@ class _ResultCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 8),
-          Text(
-            resultBody,
-            style: TextStyle(fontSize: 15, color: textColor, height: 1.6),
-          ),
+          MarkdownContent(data: resultBody, textColor: textColor),
           if (taskId != null) ...[
             const SizedBox(height: 12),
             Divider(height: 1, color: dividerColor),

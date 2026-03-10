@@ -122,6 +122,24 @@ class _SessionChatScreenState extends State<SessionChatScreen> {
     final type = event['type'] as String?;
     if (type == null || type == 'auth_ok' || type == 'auth_error') return;
 
+    if (type == 'session_updated') {
+      final sid = event['sessionId'] as String?;
+      final title = event['title'] as String?;
+      if (sid != null && title != null && sid == _currentSessionId) {
+        setState(() {
+          _session = Session(
+            id: _session!.id,
+            title: title,
+            createdAt: _session!.createdAt,
+            updatedAt: DateTime.now(),
+            synced: _session!.synced,
+          );
+        });
+        await _repo.updateSessionTitle(sid, title);
+      }
+      return;
+    }
+
     final task = event['task'] as Map<String, dynamic>?;
     final taskId = task?['id'] as String? ?? event['taskId'] as String?;
     if (taskId == null) return;
@@ -135,11 +153,15 @@ class _SessionChatScreenState extends State<SessionChatScreen> {
       case 'task_understanding':
         final understanding = task?['understanding'] as String? ?? message;
         if (understanding.isEmpty) return;
+        final steps = task?['steps'] as List<dynamic>?;
         await _addTypedMessage(
           content: understanding,
           taskId: taskId,
           type: MessageType.taskUnderstanding,
-          metadata: {'understanding': understanding},
+          metadata: {
+            'understanding': understanding,
+            if (steps != null) 'steps': steps,
+          },
         );
 
       case 'task_progress':

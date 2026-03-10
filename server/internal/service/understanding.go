@@ -34,17 +34,60 @@ func (s *UnderstandingService) Understand(taskID string) (*model.UnderstandingRe
 	var profile map[string]any
 	json.Unmarshal(profileJSON, &profile)
 
-	rows, _ := db.Pool.Query(ctx,
+	ruleRows, _ := db.Pool.Query(ctx,
 		`SELECT rule_text FROM user_rules WHERE user_id = $1 AND active = true`, userID)
 	var rules []string
-	for rows.Next() {
+	for ruleRows.Next() {
 		var r string
-		rows.Scan(&r)
+		ruleRows.Scan(&r)
 		rules = append(rules, r)
 	}
-	rows.Close()
+	ruleRows.Close()
 
-	userCtx := ai.UserContext{Profile: profile, Rules: rules}
+	var activeTasks []struct{ Status, Understanding string }
+	var history []struct{ Input, Understanding string }
+
+	if sessionID != nil {
+		atRows, _ := db.Pool.Query(ctx,
+			`SELECT status, COALESCE(understanding, input_text, '') FROM tasks
+			 WHERE session_id = $1 AND id != $2 AND status IN ('executing', 'waiting_confirm')
+			 ORDER BY created_at DESC LIMIT 5`, *sessionID, taskID)
+		for atRows.Next() {
+			var s, u string
+			atRows.Scan(&s, &u)
+			activeTasks = append(activeTasks, struct{ Status, Understanding string }{s, u})
+		}
+		atRows.Close()
+
+		hRows, _ := db.Pool.Query(ctx,
+			`SELECT COALESCE(input_text, ''), COALESCE(understanding, '')
+			 FROM tasks WHERE session_id = $1 AND id != $2 AND understanding IS NOT NULL
+			 ORDER BY created_at DESC LIMIT 5`, *sessionID, taskID)
+		for hRows.Next() {
+			var inp, und string
+			hRows.Scan(&inp, &und)
+			history = append(history, struct{ Input, Understanding string }{inp, und})
+		}
+		hRows.Close()
+	}
+
+	var memories []string
+	memRows, _ := db.Pool.Query(ctx,
+		`SELECT content FROM memories WHERE user_id = $1 ORDER BY created_at DESC LIMIT 10`, userID)
+	for memRows.Next() {
+		var m string
+		memRows.Scan(&m)
+		memories = append(memories, m)
+	}
+	memRows.Close()
+
+	userCtx := ai.UserContext{
+		Profile:     profile,
+		Rules:       rules,
+		ActiveTasks: activeTasks,
+		History:     history,
+		Memories:    memories,
+	}
 	systemPrompt := ai.BuildUnderstandingPrompt(userCtx)
 
 	s.Hub.Send(userID, model.PushEvent{
@@ -77,6 +120,22 @@ func (s *UnderstandingService) Understand(taskID string) (*model.UnderstandingRe
 		}
 	}
 
+	// If Claude identified this as a follow-up to an existing task, link them
+	if result.RelatedTaskID != nil && *result.RelatedTaskID != "" {
+		db.Pool.Exec(ctx,
+			`UPDATE tasks SET parent_task_id = $1 WHERE id = $2`,
+			*result.RelatedTaskID, taskID)
+		slog.Info("Task linked as follow-up", "taskId", taskID, "parentId", *result.RelatedTaskID)
+	}
+
+	// If intent is "rule", auto-save to user_rules
+	if result.IntentType == "rule" && result.Understanding != "" {
+		db.Pool.Exec(ctx,
+			`INSERT INTO user_rules (user_id, rule_text) VALUES ($1, $2)`,
+			userID, result.Understanding)
+		slog.Info("Auto-saved rule", "userId", userID, "rule", result.Understanding)
+	}
+
 	nextStatus := "executing"
 	if result.ExecutionPlan.RequiresConfirmation {
 		nextStatus = "waiting_confirm"
@@ -96,7 +155,8 @@ func (s *UnderstandingService) Understand(taskID string) (*model.UnderstandingRe
 			ID:            taskID,
 			InputText:     inputText,
 			Understanding: result.Understanding,
-			Status:        string(nextStatus),
+			Status:        nextStatus,
+			Steps:         result.ExecutionPlan.Steps,
 		},
 	})
 
@@ -119,13 +179,13 @@ func (s *UnderstandingService) Understand(taskID string) (*model.UnderstandingRe
 	}
 
 	if sessionID != nil {
-		go s.autoTitleSession(*sessionID, inputText)
+		go s.autoTitleSession(userID, *sessionID, inputText)
 	}
 
 	return &result, nil
 }
 
-func (s *UnderstandingService) autoTitleSession(sessionID, inputText string) {
+func (s *UnderstandingService) autoTitleSession(userID, sessionID, inputText string) {
 	ctx := context.Background()
 
 	var currentTitle *string
@@ -161,6 +221,12 @@ func (s *UnderstandingService) autoTitleSession(sessionID, inputText string) {
 	db.Pool.Exec(ctx,
 		`UPDATE sessions SET title = $1, updated_at = NOW() WHERE id = $2 AND (title IS NULL OR title = '')`,
 		title, sessionID)
+
+	s.Hub.Send(userID, model.PushEvent{
+		Type:      "session_updated",
+		SessionID: sessionID,
+		Title:     title,
+	})
 
 	slog.Info("Session auto-titled", "sessionID", sessionID, "title", title)
 }

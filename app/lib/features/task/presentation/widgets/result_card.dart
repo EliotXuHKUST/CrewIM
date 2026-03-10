@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/markdown_content.dart';
 
 class ResultCard extends StatelessWidget {
   final String title;
@@ -37,7 +38,7 @@ class ResultCard extends StatelessWidget {
           ),
           if (body != null) ...[
             const SizedBox(height: AppSpacing.sm),
-            Text(body!, style: TextStyle(fontSize: 15, height: 1.6, color: textColor)),
+            MarkdownContent(data: body!, textColor: textColor),
           ],
           if (items != null && items!.isNotEmpty) ...[
             const SizedBox(height: AppSpacing.sm),
