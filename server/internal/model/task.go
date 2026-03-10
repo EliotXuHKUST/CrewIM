@@ -12,6 +12,7 @@ const (
 	TaskStatusUnderstanding  TaskStatus = "understanding"
 	TaskStatusWaitingConfirm TaskStatus = "waiting_confirm"
 	TaskStatusExecuting      TaskStatus = "executing"
+	TaskStatusPaused         TaskStatus = "paused"
 	TaskStatusCompleted      TaskStatus = "completed"
 	TaskStatusFailed         TaskStatus = "failed"
 	TaskStatusCancelled      TaskStatus = "cancelled"

@@ -177,3 +177,78 @@ func (h *TaskHandler) RetryTask(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"taskId": taskID, "status": "created"})
 }
+
+func (h *TaskHandler) PauseTask(w http.ResponseWriter, r *http.Request) {
+	userID := middleware.GetUserID(r)
+	taskID := r.PathValue("id")
+	ctx := context.Background()
+
+	var status string
+	err := db.Pool.QueryRow(ctx, `SELECT status FROM tasks WHERE id = $1 AND user_id = $2`, taskID, userID).Scan(&status)
+	if err != nil {
+		http.Error(w, `{"error":"Task not found"}`, http.StatusNotFound)
+		return
+	}
+	if status != "executing" && status != "understanding" {
+		http.Error(w, `{"error":"Only executing tasks can be paused"}`, http.StatusBadRequest)
+		return
+	}
+
+	db.Pool.Exec(ctx, `UPDATE tasks SET status = 'paused', updated_at = NOW() WHERE id = $1`, taskID)
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"taskId": taskID, "status": "paused"})
+}
+
+func (h *TaskHandler) ResumeTask(w http.ResponseWriter, r *http.Request) {
+	userID := middleware.GetUserID(r)
+	taskID := r.PathValue("id")
+	ctx := context.Background()
+
+	var status string
+	err := db.Pool.QueryRow(ctx, `SELECT status FROM tasks WHERE id = $1 AND user_id = $2`, taskID, userID).Scan(&status)
+	if err != nil || status != "paused" {
+		http.Error(w, `{"error":"Task is not paused"}`, http.StatusBadRequest)
+		return
+	}
+
+	db.Pool.Exec(ctx, `UPDATE tasks SET status = 'executing', updated_at = NOW() WHERE id = $1`, taskID)
+	if h.Queue != nil {
+		h.Queue.EnqueueExecute(taskID)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"taskId": taskID, "status": "executing"})
+}
+
+func (h *TaskHandler) BatchConfirm(w http.ResponseWriter, r *http.Request) {
+	userID := middleware.GetUserID(r)
+	var body struct {
+		TaskIDs []string `json:"task_ids"`
+	}
+	json.NewDecoder(r.Body).Decode(&body)
+	if len(body.TaskIDs) == 0 {
+		http.Error(w, `{"error":"No task IDs provided"}`, http.StatusBadRequest)
+		return
+	}
+
+	ctx := context.Background()
+	confirmed := []string{}
+
+	for _, taskID := range body.TaskIDs {
+		var status string
+		err := db.Pool.QueryRow(ctx,
+			`SELECT status FROM tasks WHERE id = $1 AND user_id = $2`, taskID, userID).Scan(&status)
+		if err != nil || status != "waiting_confirm" {
+			continue
+		}
+		db.Pool.Exec(ctx, `UPDATE tasks SET status = 'executing', updated_at = NOW() WHERE id = $1`, taskID)
+		if h.Queue != nil {
+			h.Queue.EnqueueExecute(taskID)
+		}
+		confirmed = append(confirmed, taskID)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]any{"confirmed": confirmed, "count": len(confirmed)})
+}

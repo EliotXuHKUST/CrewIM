@@ -546,43 +546,80 @@ class _SessionChatScreenState extends State<SessionChatScreen> {
     final count = _pendingTasks.length;
     final first = _pendingTasks.first;
 
-    return GestureDetector(
-      onTap: () => _scrollToPendingTask(first.taskId),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF1C1A12) : const Color(0xFFFEFCE8),
-          border: Border(
-            bottom: BorderSide(
-              color: AppColors.warning.withValues(alpha: 0.2),
-              width: 0.5,
-            ),
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1C1A12) : const Color(0xFFFEFCE8),
+        border: Border(
+          bottom: BorderSide(
+            color: AppColors.warning.withValues(alpha: 0.2),
+            width: 0.5,
           ),
         ),
-        child: Row(
-          children: [
-            Icon(Icons.warning_amber_rounded, size: 18, color: AppColors.warning),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                count == 1
-                    ? '1 项待拍板：${first.understanding}'
-                    : '$count 项待拍板',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.warning,
+      ),
+      child: Row(
+        children: [
+          GestureDetector(
+            onTap: () => _scrollToPendingTask(first.taskId),
+            child: Row(
+              children: [
+                Icon(Icons.warning_amber_rounded, size: 18, color: AppColors.warning),
+                const SizedBox(width: 8),
+                Text(
+                  count == 1
+                      ? '1 项待拍板：${first.understanding}'
+                      : '$count 项待拍板',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.warning,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
+              ],
             ),
+          ),
+          const Spacer(),
+          if (count > 1)
+            GestureDetector(
+              onTap: _batchConfirmAll,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.warning,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: const Text(
+                  '全部确认',
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: Colors.white),
+                ),
+              ),
+            )
+          else
             Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: AppColors.warning),
-          ],
-        ),
+        ],
       ),
     );
+  }
+
+  Future<void> _batchConfirmAll() async {
+    final ids = _pendingTasks.map((p) => p.taskId).toList();
+    try {
+      await apiClient.batchConfirm(ids);
+      for (final id in ids) {
+        _markConfirmResolved(id);
+      }
+      await _addTypedMessage(
+        content: '已全部确认，${ids.length} 个任务开始执行',
+        taskId: ids.first,
+        type: MessageType.taskProgress,
+        metadata: {'step': '批量确认完成，任务正在执行…'},
+      );
+    } catch (e) {
+      _showError('批量确认失败：$e');
+    }
   }
 
   void _scrollToPendingTask(String taskId) {

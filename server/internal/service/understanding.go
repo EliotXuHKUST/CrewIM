@@ -91,9 +91,10 @@ func (s *UnderstandingService) Understand(taskID string) (*model.UnderstandingRe
 	systemPrompt := ai.BuildUnderstandingPrompt(userCtx)
 
 	s.Hub.Send(userID, model.PushEvent{
-		Type:    "task_understanding",
+		Type:    "task_progress",
 		TaskID:  taskID,
 		Message: "正在理解你的指令…",
+		Task:    &model.TaskBrief{ID: taskID, InputText: inputText, Status: "understanding"},
 	})
 
 	resp, err := s.Claude.Call(systemPrompt, []ai.Message{{Role: "user", Content: inputText}}, nil, 4096)

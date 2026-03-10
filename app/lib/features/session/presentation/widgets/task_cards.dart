@@ -276,14 +276,23 @@ class _ConfirmCard extends StatelessWidget {
   }
 }
 
-class _ResultCard extends StatelessWidget {
+class _ResultCard extends StatefulWidget {
   final Message message;
   final TaskAction? onAction;
 
   const _ResultCard({required this.message, this.onAction});
 
   @override
+  State<_ResultCard> createState() => _ResultCardState();
+}
+
+class _ResultCardState extends State<_ResultCard> {
+  bool _expanded = false;
+
+  @override
   Widget build(BuildContext context) {
+    final message = widget.message;
+    final onAction = widget.onAction;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textColor = isDark ? AppColors.textPrimaryDark : AppColors.textPrimary;
     final dividerColor = isDark ? AppColors.separatorDark : AppColors.separator;
@@ -303,20 +312,36 @@ class _ResultCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Icon(Icons.check_circle_outline, size: 15, color: AppColors.success),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  resultTitle,
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.success),
+          GestureDetector(
+            onTap: () => setState(() => _expanded = !_expanded),
+            child: Row(
+              children: [
+                Icon(Icons.check_circle_outline, size: 15, color: AppColors.success),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    resultTitle,
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.success),
+                  ),
                 ),
-              ),
-            ],
+                Icon(
+                  _expanded ? Icons.unfold_less_rounded : Icons.unfold_more_rounded,
+                  size: 16,
+                  color: AppColors.success.withValues(alpha: 0.6),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 8),
-          MarkdownContent(data: resultBody, textColor: textColor),
+          if (_expanded)
+            MarkdownContent(data: resultBody, textColor: textColor)
+          else
+            Text(
+              _brief(resultBody),
+              style: TextStyle(fontSize: 14, color: textColor, height: 1.5),
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+            ),
           if (taskId != null) ...[
             const SizedBox(height: 12),
             Divider(height: 1, color: dividerColor),
@@ -370,6 +395,16 @@ class _ResultCard extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  String _brief(String text) {
+    final cleaned = text
+        .replaceAll(RegExp(r'#{1,6}\s'), '')
+        .replaceAll(RegExp(r'\*{1,2}'), '')
+        .replaceAll(RegExp(r'`{1,3}'), '')
+        .replaceAll(RegExp(r'\n{2,}'), '\n');
+    if (cleaned.length <= 120) return cleaned;
+    return '${cleaned.substring(0, 117)}…';
   }
 }
 

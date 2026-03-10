@@ -159,6 +159,15 @@ func Migrate() error {
 		  updated_at TIMESTAMPTZ DEFAULT NOW(),
 		  UNIQUE(user_id, platform, display_name)
 		)`,
+		`CREATE TABLE IF NOT EXISTS push_tokens (
+		  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+		  user_id UUID NOT NULL REFERENCES users(id),
+		  device_token TEXT NOT NULL,
+		  platform VARCHAR(10) DEFAULT 'ios',
+		  created_at TIMESTAMPTZ DEFAULT NOW(),
+		  updated_at TIMESTAMPTZ DEFAULT NOW(),
+		  UNIQUE(user_id, device_token)
+		)`,
 	}
 	for _, m := range migrations {
 		if _, err := Pool.Exec(context.Background(), m); err != nil {

@@ -278,12 +278,28 @@ class ApiClient {
     return _request('POST', '/api/tasks/$taskId/confirm');
   }
 
+  Future<Map<String, dynamic>> batchConfirm(List<String> taskIds) async {
+    return _request('POST', '/api/tasks/batch-confirm', body: {'task_ids': taskIds});
+  }
+
   Future<Map<String, dynamic>> cancelTask(String taskId) async {
     return _request('POST', '/api/tasks/$taskId/cancel');
   }
 
+  Future<Map<String, dynamic>> pauseTask(String taskId) async {
+    return _request('POST', '/api/tasks/$taskId/pause');
+  }
+
+  Future<Map<String, dynamic>> resumeTask(String taskId) async {
+    return _request('POST', '/api/tasks/$taskId/resume');
+  }
+
   Future<Map<String, dynamic>> retryTask(String taskId) async {
     return _request('POST', '/api/tasks/$taskId/retry');
+  }
+
+  Future<Map<String, dynamic>> registerPushToken(String token, {String platform = 'ios'}) async {
+    return _request('POST', '/api/push-token', body: {'token': token, 'platform': platform});
   }
 
   // ── Profile ──
