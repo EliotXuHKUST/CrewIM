@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../features/auth/presentation/auth_gate.dart';
 import '../features/auth/presentation/login_screen.dart';
+import '../features/briefing/presentation/briefing_screen.dart';
+import '../features/briefing/presentation/all_tasks_screen.dart';
 import '../features/session/presentation/session_list_screen.dart';
 import '../features/session/presentation/session_chat_screen.dart';
 import '../features/command/presentation/command_screen.dart';
@@ -17,6 +19,10 @@ class AppRouter {
         return MaterialPageRoute(builder: (_) => const LoginScreen());
       case '/onboarding':
         return MaterialPageRoute(builder: (_) => const OnboardingScreen());
+      case '/briefing':
+        return MaterialPageRoute(builder: (_) => const BriefingScreen());
+      case '/all-tasks':
+        return MaterialPageRoute(builder: (_) => const AllTasksScreen());
       case '/sessions':
         return MaterialPageRoute(builder: (_) => const SessionListScreen());
       case '/old-command':

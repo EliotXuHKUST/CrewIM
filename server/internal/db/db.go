@@ -168,6 +168,11 @@ func Migrate() error {
 		  updated_at TIMESTAMPTZ DEFAULT NOW(),
 		  UNIQUE(user_id, device_token)
 		)`,
+		`ALTER TABLE users ALTER COLUMN phone DROP NOT NULL`,
+		`ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR(255) UNIQUE`,
+		`ALTER TABLE users ADD COLUMN IF NOT EXISTS apple_id VARCHAR(255) UNIQUE`,
+		`ALTER TABLE users ADD COLUMN IF NOT EXISTS google_id VARCHAR(255) UNIQUE`,
+		`ALTER TABLE users ADD COLUMN IF NOT EXISTS display_name TEXT`,
 	}
 	for _, m := range migrations {
 		if _, err := Pool.Exec(context.Background(), m); err != nil {

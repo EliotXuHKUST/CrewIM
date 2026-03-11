@@ -10,7 +10,6 @@ import '../../command/presentation/widgets/chat_input_bar.dart';
 import 'widgets/chat_message_bubble.dart';
 import 'widgets/task_cards.dart';
 import 'widgets/scene_cards.dart';
-import 'widgets/nav_drawer.dart';
 
 class SessionChatScreen extends StatefulWidget {
   final String? sessionId;
@@ -28,7 +27,7 @@ class _SessionChatScreenState extends State<SessionChatScreen> {
 
   String? _currentSessionId;
   Session? _session;
-  List<Session> _allSessions = [];
+  List<Session> _allSessions = []; // kept for session context loading
   List<Message> _messages = [];
   bool _loading = true;
 
@@ -462,16 +461,6 @@ class _SessionChatScreenState extends State<SessionChatScreen> {
 
     return Scaffold(
       key: _scaffoldKey,
-      drawer: NavDrawer(
-        sessions: _allSessions,
-        currentSessionId: _currentSessionId,
-        onNewSession: _createNewSession,
-        onSessionTap: _switchToSession,
-        onSessionDelete: _deleteSession,
-        onSettings: () => Navigator.pushNamed(context, '/settings'),
-        onProfile: () => Navigator.pushNamed(context, '/settings'),
-      ),
-      drawerEdgeDragWidth: 40,
       body: SafeArea(
         bottom: false,
         child: Column(
@@ -520,23 +509,20 @@ class _SessionChatScreenState extends State<SessionChatScreen> {
       child: Row(
         children: [
           IconButton(
-            onPressed: () => _scaffoldKey.currentState?.openDrawer(),
-            icon: Icon(Icons.menu_rounded, size: 22, color: secondaryColor),
+            onPressed: () => Navigator.of(context).pop(),
+            icon: Icon(Icons.arrow_back_ios, size: 20, color: secondaryColor),
           ),
           Expanded(
             child: Center(
               child: Text(
-                _messages.isEmpty ? '知知' : (_session?.displayTitle ?? '知知'),
+                _session?.displayTitle ?? '对话',
                 style: TextStyle(fontSize: 17, fontWeight: FontWeight.w500, color: textColor, letterSpacing: -0.2),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
             ),
           ),
-          IconButton(
-            onPressed: _createNewSession,
-            icon: Icon(Icons.edit_square, size: 20, color: secondaryColor),
-          ),
+          const SizedBox(width: 44),
         ],
       ),
     );

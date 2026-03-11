@@ -189,6 +189,58 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                       const SizedBox(height: AppSpacing.xl),
                     ],
 
+                    if (_task!['status'] == 'waiting_confirm') ...[
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: () async {
+                                await apiClient.cancelTask(widget.taskId);
+                                _loadDetail();
+                              },
+                              child: const Text('取消'),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: () async {
+                                await apiClient.confirmTask(widget.taskId);
+                                _loadDetail();
+                              },
+                              child: const Text('确认执行'),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: AppSpacing.lg),
+                    ],
+
+                    if (_task!['status'] == 'failed') ...[
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: () async {
+                            await apiClient.retryTask(widget.taskId);
+                            _loadDetail();
+                          },
+                          child: const Text('重试'),
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.lg),
+                    ],
+
+                    TextButton.icon(
+                      onPressed: () {
+                        final sessionId = _task!['sessionId'] as String? ?? _task!['session_id'] as String?;
+                        if (sessionId != null) {
+                          Navigator.pushNamed(context, '/session/$sessionId');
+                        }
+                      },
+                      icon: const Icon(Icons.chat_bubble_outline, size: 16),
+                      label: const Text('查看对话上下文'),
+                    ),
+
                     const SizedBox(height: 60),
                   ],
                 ),

@@ -21,6 +21,7 @@ const (
 type Task struct {
 	ID             string          `json:"id" db:"id"`
 	UserID         string          `json:"userId" db:"user_id"`
+	SessionID      *string         `json:"sessionId,omitempty" db:"session_id"`
 	ParentTaskID   *string         `json:"parentTaskId,omitempty" db:"parent_task_id"`
 	InputText      *string         `json:"inputText,omitempty" db:"input_text"`
 	InputAudioURL  *string         `json:"inputAudioUrl,omitempty" db:"input_audio_url"`

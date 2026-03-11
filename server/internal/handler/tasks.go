@@ -33,7 +33,7 @@ func (h *TaskHandler) ListTasks(w http.ResponseWriter, r *http.Request) {
 	offset := (page - 1) * limit
 
 	ctx := context.Background()
-	query := `SELECT id, user_id, input_text, understanding, status, created_at, updated_at
+	query := `SELECT id, user_id, input_text, understanding, status, session_id, result, error, created_at, updated_at
 	          FROM tasks WHERE user_id = $1`
 	args := []any{userID}
 	argIdx := 2
@@ -60,7 +60,7 @@ func (h *TaskHandler) ListTasks(w http.ResponseWriter, r *http.Request) {
 	var tasks []model.Task
 	for rows.Next() {
 		var t model.Task
-		rows.Scan(&t.ID, &t.UserID, &t.InputText, &t.Understanding, &t.Status, &t.CreatedAt, &t.UpdatedAt)
+		rows.Scan(&t.ID, &t.UserID, &t.InputText, &t.Understanding, &t.Status, &t.SessionID, &t.Result, &t.Error, &t.CreatedAt, &t.UpdatedAt)
 		tasks = append(tasks, t)
 	}
 	if tasks == nil {

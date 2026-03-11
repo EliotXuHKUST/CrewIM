@@ -140,8 +140,45 @@ class ApiClient {
     return result;
   }
 
+  Future<Map<String, dynamic>> loginWithApple(String identityToken, {String? displayName}) async {
+    final result = await _request('POST', '/api/auth/apple', body: {
+      'identity_token': identityToken,
+      if (displayName != null) 'display_name': displayName,
+    });
+    if (result['token'] != null) _token = result['token'] as String;
+    return result;
+  }
+
+  Future<Map<String, dynamic>> loginWithGoogle(String idToken, {String? displayName}) async {
+    final result = await _request('POST', '/api/auth/google', body: {
+      'id_token': idToken,
+      if (displayName != null) 'display_name': displayName,
+    });
+    if (result['token'] != null) _token = result['token'] as String;
+    return result;
+  }
+
+  Future<Map<String, dynamic>> sendEmailCode(String email) async {
+    return _request('POST', '/api/auth/email-code', body: {'email': email});
+  }
+
+  Future<Map<String, dynamic>> loginWithEmail(String email, String code) async {
+    final result = await _request('POST', '/api/auth/email', body: {
+      'email': email,
+      'code': code,
+    });
+    if (result['token'] != null) _token = result['token'] as String;
+    return result;
+  }
+
   Future<Map<String, dynamic>> deleteMyAccount() async {
     return _request('DELETE', '/api/auth/account');
+  }
+
+  // ── Briefing ──
+
+  Future<Map<String, dynamic>> getBriefing() async {
+    return _request('GET', '/api/briefing');
   }
 
   // ── Sessions ──
