@@ -85,8 +85,13 @@ class _LoginScreenState extends State<LoginScreen> {
       );
       final name = [credential.givenName, credential.familyName]
           .where((s) => s != null && s.isNotEmpty).join(' ');
+      final token = credential.identityToken;
+      if (token == null) {
+        setState(() => _error = 'Apple sign-in failed: no token received');
+        return;
+      }
       final result = await apiClient.loginWithApple(
-        credential.identityToken!,
+        token,
         displayName: name.isNotEmpty ? name : null,
       );
       await _loginSuccess(result);
@@ -106,8 +111,13 @@ class _LoginScreenState extends State<LoginScreen> {
         return;
       }
       final auth = await googleUser.authentication;
+      final idToken = auth.idToken;
+      if (idToken == null) {
+        setState(() => _error = 'Google sign-in failed: no token received');
+        return;
+      }
       final result = await apiClient.loginWithGoogle(
-        auth.idToken!,
+        idToken,
         displayName: googleUser.displayName,
       );
       await _loginSuccess(result);

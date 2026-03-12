@@ -81,6 +81,7 @@ class _BriefingScreenState extends State<BriefingScreen> {
       ),
     );
     final session = await _repo.createSession();
+    await apiClient.createSession(id: session.id);
     await _repo.addUserMessage(session.id, text);
     try {
       await apiClient.sendCommand(text, sessionId: session.id);
@@ -105,6 +106,7 @@ class _BriefingScreenState extends State<BriefingScreen> {
       ),
     );
     final session = await _repo.createSession();
+    await apiClient.createSession(id: session.id);
     try {
       await apiClient.sendCommandWithMedia(
         audioPath: audioPath,

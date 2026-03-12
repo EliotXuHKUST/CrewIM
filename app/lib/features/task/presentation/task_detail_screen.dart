@@ -65,6 +65,19 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     }
   }
 
+  Future<void> _safeAction(Future<dynamic> Function() action) async {
+    try {
+      await action();
+      _loadDetail();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('$e'), backgroundColor: AppColors.error),
+        );
+      }
+    }
+  }
+
   Future<void> _sendFollowUp() async {
     final text = _followUpController.text.trim();
     if (text.isEmpty) return;
@@ -193,10 +206,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                       SizedBox(
                         width: double.infinity,
                         child: OutlinedButton.icon(
-                          onPressed: () async {
-                            await apiClient.pauseTask(widget.taskId);
-                            _loadDetail();
-                          },
+                          onPressed: () => _safeAction(() => apiClient.pauseTask(widget.taskId)),
                           icon: const Icon(Icons.pause_rounded, size: 18),
                           label: const Text('暂停'),
                         ),
@@ -209,20 +219,14 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                         children: [
                           Expanded(
                             child: OutlinedButton(
-                              onPressed: () async {
-                                await apiClient.cancelTask(widget.taskId);
-                                _loadDetail();
-                              },
+                              onPressed: () => _safeAction(() => apiClient.cancelTask(widget.taskId)),
                               child: const Text('取消'),
                             ),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
                             child: ElevatedButton(
-                              onPressed: () async {
-                                await apiClient.confirmTask(widget.taskId);
-                                _loadDetail();
-                              },
+                              onPressed: () => _safeAction(() => apiClient.confirmTask(widget.taskId)),
                               child: const Text('确认执行'),
                             ),
                           ),
@@ -235,10 +239,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
-                          onPressed: () async {
-                            await apiClient.retryTask(widget.taskId);
-                            _loadDetail();
-                          },
+                          onPressed: () => _safeAction(() => apiClient.retryTask(widget.taskId)),
                           child: const Text('重试'),
                         ),
                       ),
