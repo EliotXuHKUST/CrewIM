@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../../main.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/storage/auth_storage.dart';
@@ -137,6 +139,79 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  String _currentLanguageLabel() {
+    final current = localeNotifier.value?.languageCode;
+    return switch (current) {
+      'zh' => '中文',
+      'en' => 'English',
+      'ja' => '日本語',
+      _ => 'System',
+    };
+  }
+
+  void _showLanguagePicker() {
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 8),
+            Container(width: 40, height: 4, decoration: BoxDecoration(color: AppColors.separator, borderRadius: BorderRadius.circular(2))),
+            const SizedBox(height: 16),
+            ListTile(
+              title: const Text('System'),
+              selected: localeNotifier.value == null,
+              onTap: () async {
+                localeNotifier.value = null;
+                final prefs = await SharedPreferences.getInstance();
+                await prefs.remove('app_locale');
+                if (ctx.mounted) Navigator.pop(ctx);
+                setState(() {});
+              },
+            ),
+            ListTile(
+              leading: const Text('🇨🇳', style: TextStyle(fontSize: 22)),
+              title: const Text('中文'),
+              selected: localeNotifier.value?.languageCode == 'zh',
+              onTap: () => _setLocale(ctx, 'zh'),
+            ),
+            ListTile(
+              leading: const Text('🇺🇸', style: TextStyle(fontSize: 22)),
+              title: const Text('English'),
+              selected: localeNotifier.value?.languageCode == 'en',
+              onTap: () => _setLocale(ctx, 'en'),
+            ),
+            ListTile(
+              leading: const Text('🇯🇵', style: TextStyle(fontSize: 22)),
+              title: const Text('日本語'),
+              selected: localeNotifier.value?.languageCode == 'ja',
+              onTap: () => _setLocale(ctx, 'ja'),
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _setLocale(BuildContext ctx, String code) async {
+    localeNotifier.value = Locale(code);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('app_locale', code);
+    if (ctx.mounted) Navigator.pop(ctx);
+    setState(() {});
+  }
+
+  void _openWebPage(String title, String url) {
+    Navigator.push(context, MaterialPageRoute(
+      builder: (_) => Scaffold(
+        appBar: AppBar(title: Text(title)),
+        body: const Center(child: Text('Coming soon', style: TextStyle(color: AppColors.textSecondary))),
+      ),
+    ));
+  }
+
   Future<void> _deleteThirdPartyAccount(String id) async {
     try {
       await apiClient.deleteAccount(id);
@@ -252,11 +327,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           textColor: textColor,
                           valueColor: secondaryColor,
                         ),
-                        Divider(height: 1, color: isDark ? AppColors.separatorDark : AppColors.separator),
+                      ],
+                    ),
+
+                    const SizedBox(height: 24),
+                    _SectionHeader(title: 'Language', color: secondaryColor),
+                    _Card(
+                      color: cardColor,
+                      children: [
                         _TapRow(
-                          label: l10n.logout,
-                          labelColor: AppColors.textSecondary,
-                          onTap: _logout,
+                          label: _currentLanguageLabel(),
+                          labelColor: textColor,
+                          trailing: true,
+                          onTap: _showLanguagePicker,
                         ),
                       ],
                     ),
@@ -342,29 +425,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           label: l10n.privacyPolicy,
                           labelColor: textColor,
                           trailing: true,
-                          onTap: () {
-                            // Opens privacy policy - replace URL with real one
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('隐私政策页面开发中'),
-                                behavior: SnackBarBehavior.floating,
-                              ),
-                            );
-                          },
+                          onTap: () => _openWebPage(l10n.privacyPolicy, 'https://zhizhi.app/privacy'),
                         ),
                         Divider(height: 1, color: isDark ? AppColors.separatorDark : AppColors.separator),
                         _TapRow(
                           label: l10n.termsOfService,
                           labelColor: textColor,
                           trailing: true,
-                          onTap: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('用户协议页面开发中'),
-                                behavior: SnackBarBehavior.floating,
-                              ),
-                            );
-                          },
+                          onTap: () => _openWebPage(l10n.termsOfService, 'https://zhizhi.app/terms'),
                         ),
                       ],
                     ),
@@ -378,16 +446,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ],
                     ),
 
-                    const SizedBox(height: 24),
-                    _Card(
-                      color: cardColor,
-                      children: [
-                        _TapRow(
-                          label: l10n.deleteAccount,
-                          labelColor: AppColors.error,
-                          onTap: _deleteUserAccount,
-                        ),
-                      ],
+                    const SizedBox(height: 40),
+
+                    _TapRow(
+                      label: l10n.logout,
+                      labelColor: AppColors.textSecondary,
+                      onTap: _logout,
+                    ),
+                    const SizedBox(height: 8),
+                    _TapRow(
+                      label: l10n.deleteAccount,
+                      labelColor: AppColors.error,
+                      onTap: _deleteUserAccount,
                     ),
 
                     const SizedBox(height: 40),

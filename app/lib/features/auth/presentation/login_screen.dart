@@ -20,6 +20,21 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _loading = false;
   String? _error;
   String _mode = 'main'; // main, phone, email
+  String _countryCode = '+86';
+
+  static const _countryCodes = [
+    ('+86', '🇨🇳', 'China'),
+    ('+1', '🇺🇸', 'USA'),
+    ('+81', '🇯🇵', 'Japan'),
+    ('+44', '🇬🇧', 'UK'),
+    ('+82', '🇰🇷', 'Korea'),
+    ('+65', '🇸🇬', 'Singapore'),
+    ('+61', '🇦🇺', 'Australia'),
+    ('+49', '🇩🇪', 'Germany'),
+    ('+33', '🇫🇷', 'France'),
+    ('+852', '🇭🇰', 'Hong Kong'),
+    ('+886', '🇹🇼', 'Taiwan'),
+  ];
 
   final _phoneController = TextEditingController();
   final _codeController = TextEditingController();
@@ -38,7 +53,12 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  bool get _phoneValid => RegExp(r'^1[3-9]\d{9}$').hasMatch(_phoneController.text.trim());
+  bool get _phoneValid {
+    final phone = _phoneController.text.trim();
+    return phone.length >= 6 && RegExp(r'^\d{6,15}$').hasMatch(phone);
+  }
+
+  String get _fullPhone => '$_countryCode${_phoneController.text.trim()}';
   bool get _emailValid => _emailController.text.trim().contains('@');
 
   Future<void> _loginSuccess(Map<String, dynamic> result) async {
@@ -102,7 +122,7 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!_phoneValid || _countdown > 0) return;
     setState(() => _error = null);
     try {
-      await apiClient.sendSmsCode(_phoneController.text.trim());
+      await apiClient.sendSmsCode(_fullPhone);
       _startCountdown();
     } catch (e) {
       setState(() => _error = e.toString());
@@ -132,7 +152,7 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!_phoneValid || _codeController.text.trim().length != 6) return;
     setState(() { _loading = true; _error = null; });
     try {
-      final result = await apiClient.login(_phoneController.text.trim(), _codeController.text.trim());
+      final result = await apiClient.login(_fullPhone, _codeController.text.trim());
       await _loginSuccess(result);
     } catch (e) {
       setState(() => _error = e.toString());
@@ -280,17 +300,47 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget _buildPhoneForm(AppLocalizations l10n, Color fillColor, Color accentColor) {
     return Column(
       children: [
-        TextField(
-          controller: _phoneController,
-          keyboardType: TextInputType.phone,
-          maxLength: 11,
-          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-          onChanged: (_) => setState(() {}),
-          decoration: InputDecoration(
-            hintText: l10n.phone, counterText: '', filled: true, fillColor: fillColor,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          ),
+        Row(
+          children: [
+            GestureDetector(
+              onTap: () => _showCountryCodePicker(),
+              child: Container(
+                height: 48,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                decoration: BoxDecoration(
+                  color: fillColor,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      _countryCodes.firstWhere((c) => c.$1 == _countryCode).$2,
+                      style: const TextStyle(fontSize: 18),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(_countryCode, style: const TextStyle(fontSize: 15, color: AppColors.textPrimary)),
+                    const Icon(Icons.arrow_drop_down, size: 18, color: AppColors.textSecondary),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: TextField(
+                controller: _phoneController,
+                keyboardType: TextInputType.phone,
+                maxLength: 15,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                onChanged: (_) => setState(() {}),
+                decoration: InputDecoration(
+                  hintText: l10n.phone, counterText: '', filled: true, fillColor: fillColor,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                ),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 12),
         Row(
@@ -378,6 +428,33 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  void _showCountryCodePicker() {
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 8),
+            Container(width: 40, height: 4, decoration: BoxDecoration(color: AppColors.separator, borderRadius: BorderRadius.circular(2))),
+            const SizedBox(height: 16),
+            ..._countryCodes.map((c) => ListTile(
+              leading: Text(c.$2, style: const TextStyle(fontSize: 22)),
+              title: Text(c.$3),
+              trailing: Text(c.$1, style: const TextStyle(color: AppColors.textSecondary)),
+              selected: c.$1 == _countryCode,
+              onTap: () {
+                setState(() => _countryCode = c.$1);
+                Navigator.pop(ctx);
+              },
+            )),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
     );
   }
 }
