@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../l10n/app_localizations.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/storage/auth_storage.dart';
@@ -15,6 +16,7 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   String? _phone;
   String _gatewayUrl = '';
+  String _wechatWebhook = '';
   List<Map<String, dynamic>> _accounts = [];
   bool _loading = true;
 
@@ -31,6 +33,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       final profile = await apiClient.getProfile();
       final p = profile['profile'] as Map<String, dynamic>? ?? {};
       _gatewayUrl = p['openclaw_gateway_url'] as String? ?? '';
+      _wechatWebhook = p['wechat_work_webhook'] as String? ?? '';
     } catch (_) {}
 
     try {
@@ -51,17 +54,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
     } catch (_) {}
   }
 
+  Future<void> _saveWechatWebhook(String url) async {
+    try {
+      await apiClient.updateProfile({'profile': {'wechat_work_webhook': url}});
+      setState(() => _wechatWebhook = url);
+    } catch (_) {}
+  }
+
   Future<void> _logout() async {
+    final l10n = AppLocalizations.of(context)!;
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('退出登录'),
-        content: const Text('确定退出当前账号？'),
+        title: Text(l10n.logout),
+        content: Text(l10n.logoutConfirm),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('取消')),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(l10n.cancel)),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('确定', style: TextStyle(color: AppColors.error)),
+            child: Text(l10n.confirm, style: const TextStyle(color: AppColors.error)),
           ),
         ],
       ),
@@ -76,18 +87,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _deleteUserAccount() async {
+    final l10n = AppLocalizations.of(context)!;
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('注销账号'),
-        content: const Text(
-          '注销后所有数据将被永久删除，包括会话记录、任务历史、绑定账号等。此操作不可撤销。',
-        ),
+        title: Text(l10n.deleteAccount),
+        content: Text(l10n.deleteAccountWarning),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('取消')),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(l10n.cancel)),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('确认注销', style: TextStyle(color: AppColors.error)),
+            child: Text(l10n.confirmDeleteAccount, style: const TextStyle(color: AppColors.error)),
           ),
         ],
       ),
@@ -97,13 +107,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final doubleConfirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('最终确认'),
-        content: const Text('真的要永久删除账号和所有数据吗？'),
+        title: Text(l10n.confirmDeleteAccount),
+        content: Text(l10n.deleteAccountFinal),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('我再想想')),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(l10n.letMeThink)),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('永久删除', style: TextStyle(color: AppColors.error, fontWeight: FontWeight.w600)),
+            child: Text(l10n.permanentDelete, style: const TextStyle(color: AppColors.error, fontWeight: FontWeight.w600)),
           ),
         ],
       ),
@@ -152,22 +162,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   void _openFeedback() {
+    final l10n = AppLocalizations.of(context)!;
     showDialog(
       context: context,
       builder: (ctx) {
         final controller = TextEditingController();
         return AlertDialog(
-          title: const Text('意见反馈'),
+          title: Text(l10n.feedback),
           content: TextField(
             controller: controller,
             maxLines: 5,
-            decoration: const InputDecoration(
-              hintText: '请描述你遇到的问题或建议…',
-              border: OutlineInputBorder(),
+            decoration: InputDecoration(
+              hintText: l10n.feedbackHint,
+              border: const OutlineInputBorder(),
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
+            TextButton(onPressed: () => Navigator.pop(ctx), child: Text(l10n.cancel)),
             TextButton(
               onPressed: () async {
                 final text = controller.text.trim();
@@ -178,15 +189,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   } catch (_) {}
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('感谢你的反馈！'),
+                      SnackBar(
+                        content: Text(l10n.feedbackThanks),
                         behavior: SnackBarBehavior.floating,
                       ),
                     );
                   }
                 }
               },
-              child: const Text('提交'),
+              child: Text(l10n.submit),
             ),
           ],
         );
@@ -217,7 +228,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     icon: Icon(Icons.arrow_back_ios, size: 20, color: secondaryColor),
                   ),
                   const SizedBox(width: 4),
-                  Text('设置', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w500, color: textColor)),
+                  Text(AppLocalizations.of(context)?.settings ?? 'Settings', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w500, color: textColor)),
                 ],
               ),
             ),
@@ -225,23 +236,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
               const Expanded(child: Center(child: CircularProgressIndicator(strokeWidth: 2)))
             else
               Expanded(
-                child: ListView(
+                child: Builder(builder: (context) {
+                  final l10n = AppLocalizations.of(context)!;
+                  return ListView(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   children: [
                     const SizedBox(height: 8),
-                    _SectionHeader(title: '账号', color: secondaryColor),
+                    _SectionHeader(title: l10n.account, color: secondaryColor),
                     _Card(
                       color: cardColor,
                       children: [
                         _Row(
-                          label: '手机号',
+                          label: l10n.phoneNumber,
                           value: _phone ?? '-',
                           textColor: textColor,
                           valueColor: secondaryColor,
                         ),
                         Divider(height: 1, color: isDark ? AppColors.separatorDark : AppColors.separator),
                         _TapRow(
-                          label: '退出登录',
+                          label: l10n.logout,
                           labelColor: AppColors.textSecondary,
                           onTap: _logout,
                         ),
@@ -249,7 +262,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
 
                     const SizedBox(height: 24),
-                    _SectionHeader(title: 'AI 服务', color: secondaryColor),
+                    _SectionHeader(title: l10n.aiService, color: secondaryColor),
                     _Card(
                       color: cardColor,
                       children: [
@@ -261,13 +274,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           secondaryColor: secondaryColor,
                           onSave: _saveGatewayUrl,
                         ),
+                        Divider(height: 1, color: isDark ? AppColors.separatorDark : AppColors.separator),
+                        _EditableRow(
+                          label: l10n.wechatWorkWebhook,
+                          value: _wechatWebhook,
+                          hint: l10n.wechatWorkWebhookHint,
+                          textColor: textColor,
+                          secondaryColor: secondaryColor,
+                          onSave: _saveWechatWebhook,
+                        ),
                       ],
                     ),
 
                     const SizedBox(height: 24),
                     Row(
                       children: [
-                        _SectionHeader(title: '已绑定账号', color: secondaryColor),
+                        _SectionHeader(title: l10n.boundAccounts, color: secondaryColor),
                         const Spacer(),
                         GestureDetector(
                           onTap: _openAddAccount,
@@ -282,7 +304,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           Padding(
                             padding: const EdgeInsets.symmetric(vertical: 20),
                             child: Center(
-                              child: Text('暂未绑定任何账号', style: TextStyle(fontSize: 14, color: secondaryColor)),
+                              child: Text(l10n.noAccounts, style: TextStyle(fontSize: 14, color: secondaryColor)),
                             ),
                           ),
                         ],
@@ -305,19 +327,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
 
                     const SizedBox(height: 24),
-                    _SectionHeader(title: '支持', color: secondaryColor),
+                    _SectionHeader(title: l10n.support, color: secondaryColor),
                     _Card(
                       color: cardColor,
                       children: [
                         _TapRow(
-                          label: '意见反馈',
+                          label: l10n.feedback,
                           labelColor: textColor,
                           trailing: true,
                           onTap: _openFeedback,
                         ),
                         Divider(height: 1, color: isDark ? AppColors.separatorDark : AppColors.separator),
                         _TapRow(
-                          label: '隐私政策',
+                          label: l10n.privacyPolicy,
                           labelColor: textColor,
                           trailing: true,
                           onTap: () {
@@ -332,7 +354,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                         Divider(height: 1, color: isDark ? AppColors.separatorDark : AppColors.separator),
                         _TapRow(
-                          label: '用户协议',
+                          label: l10n.termsOfService,
                           labelColor: textColor,
                           trailing: true,
                           onTap: () {
@@ -348,11 +370,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
 
                     const SizedBox(height: 24),
-                    _SectionHeader(title: '关于', color: secondaryColor),
+                    _SectionHeader(title: l10n.about, color: secondaryColor),
                     _Card(
                       color: cardColor,
                       children: [
-                        _Row(label: '版本', value: '1.0.0', textColor: textColor, valueColor: secondaryColor),
+                        _Row(label: l10n.version, value: '1.0.0', textColor: textColor, valueColor: secondaryColor),
                       ],
                     ),
 
@@ -361,7 +383,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       color: cardColor,
                       children: [
                         _TapRow(
-                          label: '注销账号',
+                          label: l10n.deleteAccount,
                           labelColor: AppColors.error,
                           onTap: _deleteUserAccount,
                         ),
@@ -370,7 +392,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
                     const SizedBox(height: 40),
                   ],
-                ),
+                );
+                }),
               ),
           ],
         ),

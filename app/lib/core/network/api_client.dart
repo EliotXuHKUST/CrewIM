@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import '../config/env.dart';
@@ -82,6 +83,10 @@ class ApiClient {
       if (responseBody.isEmpty) return {};
       return jsonDecode(responseBody) as Map<String, dynamic>;
     } on SocketException {
+      throw ApiException(0, '网络连接失败，请检查网络');
+    } on TimeoutException {
+      throw ApiException(0, '网络请求超时，请稍后重试');
+    } on HandshakeException {
       throw ApiException(0, '网络连接失败，请检查网络');
     } on HttpException catch (e) {
       throw ApiException(0, e.message);
@@ -288,7 +293,11 @@ class ApiClient {
       if (responseBody.isEmpty) return {};
       return jsonDecode(responseBody) as Map<String, dynamic>;
     } on SocketException {
-      throw ApiException(0, '网络连接失败');
+      throw ApiException(0, '网络连接失败，请检查网络');
+    } on TimeoutException {
+      throw ApiException(0, '网络请求超时，请稍后重试');
+    } on HandshakeException {
+      throw ApiException(0, '网络连接失败，请检查网络');
     } finally {
       request.close();
     }

@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/smtp"
+	"os"
 	"regexp"
 	"strings"
 
@@ -278,7 +280,13 @@ func (h *AuthHandler) SendEmailCode(w http.ResponseWriter, r *http.Request) {
 
 	code := h.CodeStore.Generate(body.Email)
 
-	// For now, log the code. In production, send via SMTP.
+	if !h.MockMode {
+		if err := h.sendEmailVerification(body.Email, code); err != nil {
+			http.Error(w, fmt.Sprintf(`{"error":"Failed to send email: %s"}`, err.Error()), http.StatusInternalServerError)
+			return
+		}
+	}
+
 	resp := map[string]any{"success": true}
 	if h.MockMode {
 		resp["code"] = code
@@ -286,6 +294,29 @@ func (h *AuthHandler) SendEmailCode(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(resp)
+}
+
+func (h *AuthHandler) sendEmailVerification(toEmail, code string) error {
+	subject := "ZhiZhi - Verification Code"
+	body := fmt.Sprintf("Your verification code is: %s\n\nThis code expires in 5 minutes.\n\n-- ZhiZhi", code)
+
+	smtpHost := os.Getenv("SMTP_HOST")
+	smtpPort := os.Getenv("SMTP_PORT")
+	smtpUser := os.Getenv("SMTP_USER")
+	smtpPass := os.Getenv("SMTP_PASS")
+
+	if smtpHost == "" || smtpUser == "" {
+		return fmt.Errorf("SMTP not configured (set SMTP_HOST, SMTP_USER, SMTP_PASS)")
+	}
+	if smtpPort == "" {
+		smtpPort = "587"
+	}
+
+	msg := fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: %s\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\n%s",
+		smtpUser, toEmail, subject, body)
+
+	auth := smtp.PlainAuth("", smtpUser, smtpPass, smtpHost)
+	return smtp.SendMail(smtpHost+":"+smtpPort, auth, smtpUser, []string{toEmail}, []byte(msg))
 }
 
 func (h *AuthHandler) findOrCreateUser(ctx context.Context, field, value, email, displayName string) (string, bool) {
