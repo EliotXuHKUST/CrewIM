@@ -1,41 +1,42 @@
 import 'package:flutter/material.dart';
 
-/// Design tokens — clean neutral palette with restrained semantic color.
-/// Rule: 90% neutral + 10% semantic. Color is only for meaning, never decoration.
 abstract final class AppColors {
-  // ── Backgrounds (light) ──
-  static const background = Color(0xFFFAFAF9);
+  // ── Backgrounds ──
+  static const background = Color(0xFFF8F8F6);
   static const card = Color(0xFFFFFFFF);
-  static const surfaceSecondary = Color(0xFFF5F5F3);
+  static const surfaceSecondary = Color(0xFFF2F2EF);
 
-  // ── Backgrounds (dark) ──
-  static const backgroundDark = Color(0xFF101010);
-  static const cardDark = Color(0xFF1A1A1A);
-  static const surfaceSecondaryDark = Color(0xFF222222);
-
-  // ── Text (light) ──
+  // ── Text ──
   static const textPrimary = Color(0xFF1A1A1A);
-  static const textSecondary = Color(0xFF71717A);
-  static const textPlaceholder = Color(0xFFA1A1AA);
+  static const textSecondary = Color(0xFF6B6B6B);
+  static const textPlaceholder = Color(0xFF9E9E9E);
 
-  // ── Text (dark) ──
-  static const textPrimaryDark = Color(0xFFF4F4F5);
-  static const textSecondaryDark = Color(0xFFA1A1AA);
+  // ── Brand accent — warm indigo, not default Material blue ──
+  static const accent = Color(0xFF4338CA);
+  static const accentLight = Color(0xFFEEF2FF);
+  static const accentPressed = Color(0xFF3730A3);
+  static const accentDisabled = Color(0xFFA5B4FC);
 
-  // ── Semantic: only for status dots, primary buttons, small labels ──
-  static const accent = Color(0xFF2563EB);
-  static const accentPressed = Color(0xFF1D4ED8);
-  static const accentDisabled = Color(0xFF93C5FD);
-  static const accentDark = Color(0xFF5B8DEF);
-
-  static const success = Color(0xFF16A34A);
-  static const warning = Color(0xFFCA8A04);
+  // ── Semantic ──
+  static const success = Color(0xFF059669);
+  static const successLight = Color(0xFFECFDF5);
+  static const warning = Color(0xFFD97706);
+  static const warningLight = Color(0xFFFFFBEB);
   static const error = Color(0xFFDC2626);
+  static const errorLight = Color(0xFFFEF2F2);
 
   // ── Surfaces & borders ──
-  static const separator = Color(0xFFE4E4E7);
+  static const separator = Color(0xFFE5E5E3);
+  static const inputFill = Color(0xFFF5F5F3);
+  static const buttonOutline = Color(0xFFD5D5D3);
+
+  // ── Dark mode (kept for compatibility but not active) ──
+  static const backgroundDark = Color(0xFF0F0F0F);
+  static const cardDark = Color(0xFF1A1A1A);
+  static const surfaceSecondaryDark = Color(0xFF222222);
+  static const textPrimaryDark = Color(0xFFF4F4F5);
+  static const textSecondaryDark = Color(0xFFA1A1AA);
   static const separatorDark = Color(0xFF2C2C2C);
-  static const inputFill = Color(0xFFF4F4F5);
   static const inputFillDark = Color(0xFF262626);
-  static const buttonOutline = Color(0xFFD4D4D8);
+  static const accentDark = Color(0xFF818CF8);
 }
