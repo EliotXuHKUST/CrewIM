@@ -87,12 +87,12 @@ func Briefing(w http.ResponseWriter, r *http.Request) {
 		case model.TaskStatusExecuting, model.TaskStatusUnderstanding, model.TaskStatusCreated:
 			priority = 10
 			reason = "in_progress"
-			actions = []string{"detail"}
+			actions = []string{"detail", "pause"}
 
 			if t.Status == string(model.TaskStatusExecuting) && now.Sub(t.CreatedAt) > 24*time.Hour {
 				priority = 60
 				reason = "taking_long"
-				actions = []string{"detail", "cancel"}
+				actions = []string{"detail", "pause", "cancel"}
 			}
 		case model.TaskStatusPaused:
 			priority = 40

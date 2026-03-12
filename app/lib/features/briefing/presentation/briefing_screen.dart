@@ -72,11 +72,12 @@ class _BriefingScreenState extends State<BriefingScreen> {
 
   Future<void> _sendText(String text) async {
     if (!mounted) return;
+    final l10n = AppLocalizations.of(context)!;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('指令已发出，AI 正在处理…'),
+      SnackBar(
+        content: Text(l10n.commandSent),
         behavior: SnackBarBehavior.floating,
-        duration: Duration(seconds: 2),
+        duration: const Duration(seconds: 2),
       ),
     );
     final session = await _repo.createSession();
@@ -95,11 +96,12 @@ class _BriefingScreenState extends State<BriefingScreen> {
 
   Future<void> _sendMedia({String? audioPath, List<String>? imagePaths}) async {
     if (!mounted) return;
+    final l10n = AppLocalizations.of(context)!;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('上传中…'),
+      SnackBar(
+        content: Text(l10n.uploading),
         behavior: SnackBarBehavior.floating,
-        duration: Duration(seconds: 2),
+        duration: const Duration(seconds: 2),
       ),
     );
     final session = await _repo.createSession();
@@ -130,6 +132,8 @@ class _BriefingScreenState extends State<BriefingScreen> {
           await apiClient.retryTask(taskId);
         case 'resume':
           await apiClient.resumeTask(taskId);
+        case 'pause':
+          await apiClient.pauseTask(taskId);
         case 'detail':
           if (mounted) Navigator.pushNamed(context, '/task/$taskId');
           return;
@@ -245,7 +249,15 @@ class _BriefingScreenState extends State<BriefingScreen> {
     final taskId = task['id'] as String? ?? '';
     final understanding = task['understanding'] as String? ?? task['inputText'] as String? ?? '';
     final status = task['status'] as String? ?? '';
-    final reason = h['reason'] as String? ?? '';
+    final reasonKey = h['reason'] as String? ?? '';
+    final reason = switch (reasonKey) {
+      'needs_decision' => l10n.needsDecision,
+      'failed' => l10n.failed,
+      'in_progress' => l10n.inProgress,
+      'taking_long' => l10n.takingLong,
+      'paused' => l10n.paused,
+      _ => reasonKey,
+    };
     final actions = (h['actions'] as List?)?.cast<String>() ?? ['detail'];
 
     final statusColor = switch (status) {
@@ -310,6 +322,7 @@ class _BriefingScreenState extends State<BriefingScreen> {
       'cancel' => l10n.cancel,
       'retry' => l10n.retry,
       'resume' => l10n.resume,
+      'pause' => l10n.pause,
       'detail' => l10n.detail,
       _ => action,
     };
@@ -372,12 +385,12 @@ class _BriefingScreenState extends State<BriefingScreen> {
       children: [
         const SizedBox(height: 8),
         Text(
-          '试试说一句话',
+          l10n.tryFirstCommand,
           style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: AppColors.textPrimary),
         ),
         const SizedBox(height: 4),
         Text(
-          '或者点击下方场景快速开始',
+          l10n.tapSceneToStart,
           style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
         ),
         const SizedBox(height: 20),

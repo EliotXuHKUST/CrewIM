@@ -330,4 +330,79 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get scene4Desc => '起草并发送邮件';
+
+  @override
+  String get tryFirstCommand => '试试说一句话';
+
+  @override
+  String get tapSceneToStart => '或者点击下方场景快速开始';
+
+  @override
+  String get commandSent => '指令已发出，AI 正在处理…';
+
+  @override
+  String get uploading => '上传中…';
+
+  @override
+  String get taskNotFound => '任务未找到';
+
+  @override
+  String get executionProgress => '执行进展';
+
+  @override
+  String get finalResult => '最终结果';
+
+  @override
+  String get followUpHint => '追问或补充…';
+
+  @override
+  String get confirmExecution => '确认执行';
+
+  @override
+  String get conversation => '对话';
+
+  @override
+  String get confirmExecuting => '任务已确认，正在执行…';
+
+  @override
+  String get cancelled => '已取消';
+
+  @override
+  String get retrying => '正在重试…';
+
+  @override
+  String get retryingUnderstand => '重新理解指令中…';
+
+  @override
+  String get followUpFailed => '补充发送失败';
+
+  @override
+  String get confirmFailed => '确认失败';
+
+  @override
+  String get cancelFailed => '取消失败';
+
+  @override
+  String get retryFailed => '重试失败';
+
+  @override
+  String get pause => '暂停';
+
+  @override
+  String get addAccount => '添加账号';
+
+  @override
+  String get editAccount => '编辑账号';
+
+  @override
+  String get wechatWorkWebhook => '企业微信群机器人';
+
+  @override
+  String get wechatWorkWebhookHint => '粘贴群机器人 Webhook URL';
+
+  @override
+  String get intlPhoneNotSupported => '国际号码暂不支持短信验证，请使用邮箱或 Apple 登录';
+
+  @override
+  String get confirmDeleteAccount => '确认注销';
 }

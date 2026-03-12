@@ -348,4 +348,80 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get scene4Desc => 'Draft and send emails';
+
+  @override
+  String get tryFirstCommand => 'Try saying something';
+
+  @override
+  String get tapSceneToStart => 'Or tap a scenario below to get started';
+
+  @override
+  String get commandSent => 'Command sent, AI is processing…';
+
+  @override
+  String get uploading => 'Uploading…';
+
+  @override
+  String get taskNotFound => 'Task not found';
+
+  @override
+  String get executionProgress => 'Execution progress';
+
+  @override
+  String get finalResult => 'Result';
+
+  @override
+  String get followUpHint => 'Follow up…';
+
+  @override
+  String get confirmExecution => 'Confirm';
+
+  @override
+  String get conversation => 'Conversation';
+
+  @override
+  String get confirmExecuting => 'Confirmed, executing…';
+
+  @override
+  String get cancelled => 'Cancelled';
+
+  @override
+  String get retrying => 'Retrying…';
+
+  @override
+  String get retryingUnderstand => 'Re-analyzing…';
+
+  @override
+  String get followUpFailed => 'Follow-up failed';
+
+  @override
+  String get confirmFailed => 'Confirm failed';
+
+  @override
+  String get cancelFailed => 'Cancel failed';
+
+  @override
+  String get retryFailed => 'Retry failed';
+
+  @override
+  String get pause => 'Pause';
+
+  @override
+  String get addAccount => 'Add account';
+
+  @override
+  String get editAccount => 'Edit account';
+
+  @override
+  String get wechatWorkWebhook => 'WeChat Work Bot';
+
+  @override
+  String get wechatWorkWebhookHint => 'Paste group bot Webhook URL';
+
+  @override
+  String get intlPhoneNotSupported =>
+      'International numbers not supported for SMS. Please use email or Apple Sign-In.';
+
+  @override
+  String get confirmDeleteAccount => 'Confirm deletion';
 }

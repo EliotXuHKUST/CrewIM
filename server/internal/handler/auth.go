@@ -7,13 +7,14 @@ import (
 	"fmt"
 	"net/http"
 	"regexp"
+	"strings"
 
 	"github.com/xiaozhong/command-center-server/internal/db"
 	"github.com/xiaozhong/command-center-server/internal/middleware"
 	"github.com/xiaozhong/command-center-server/internal/sms"
 )
 
-var phoneRegex = regexp.MustCompile(`^1[3-9]\d{9}$`)
+var phoneRegex = regexp.MustCompile(`^\+?\d{6,15}$`)
 
 type sendCodeRequest struct {
 	Phone string `json:"phone"`
@@ -53,16 +54,27 @@ func (h *AuthHandler) SendCode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if msg := h.CodeStore.CheckRateLimit(req.Phone); msg != "" {
+	phone := req.Phone
+	if !strings.HasPrefix(phone, "+") {
+		phone = "+86" + phone
+	}
+	if !strings.HasPrefix(phone, "+86") {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "International numbers not supported for SMS. Please use email or Apple Sign-In."})
+		return
+	}
+
+	if msg := h.CodeStore.CheckRateLimit(phone); msg != "" {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusTooManyRequests)
 		json.NewEncoder(w).Encode(map[string]string{"error": msg})
 		return
 	}
 
-	code := h.CodeStore.Generate(req.Phone)
+	code := h.CodeStore.Generate(phone)
 
-	if err := h.SMSSender.Send(req.Phone, code); err != nil {
+	if err := h.SMSSender.Send(phone, code); err != nil {
 		http.Error(w, `{"error":"Failed to send SMS"}`, http.StatusInternalServerError)
 		return
 	}

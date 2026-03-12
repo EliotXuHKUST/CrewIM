@@ -330,4 +330,79 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get scene4Desc => 'メールの作成と送信';
+
+  @override
+  String get tryFirstCommand => '何か言ってみてください';
+
+  @override
+  String get tapSceneToStart => 'または下のシナリオをタップ';
+
+  @override
+  String get commandSent => '指示を送信しました。AIが処理中…';
+
+  @override
+  String get uploading => 'アップロード中…';
+
+  @override
+  String get taskNotFound => 'タスクが見つかりません';
+
+  @override
+  String get executionProgress => '実行状況';
+
+  @override
+  String get finalResult => '結果';
+
+  @override
+  String get followUpHint => 'フォローアップ…';
+
+  @override
+  String get confirmExecution => '実行を確認';
+
+  @override
+  String get conversation => '会話';
+
+  @override
+  String get confirmExecuting => '確認済み、実行中…';
+
+  @override
+  String get cancelled => 'キャンセル済み';
+
+  @override
+  String get retrying => '再試行中…';
+
+  @override
+  String get retryingUnderstand => '再分析中…';
+
+  @override
+  String get followUpFailed => 'フォローアップ送信失敗';
+
+  @override
+  String get confirmFailed => '確認に失敗';
+
+  @override
+  String get cancelFailed => 'キャンセルに失敗';
+
+  @override
+  String get retryFailed => '再試行に失敗';
+
+  @override
+  String get pause => '一時停止';
+
+  @override
+  String get addAccount => 'アカウント追加';
+
+  @override
+  String get editAccount => 'アカウント編集';
+
+  @override
+  String get wechatWorkWebhook => '企業微信ボット';
+
+  @override
+  String get wechatWorkWebhookHint => 'グループボットWebhook URLを貼り付け';
+
+  @override
+  String get intlPhoneNotSupported => '国際番号はSMS非対応です。メールまたはAppleサインインをご利用ください。';
+
+  @override
+  String get confirmDeleteAccount => '削除を確認';
 }

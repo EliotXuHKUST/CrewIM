@@ -189,6 +189,21 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                       const SizedBox(height: AppSpacing.xl),
                     ],
 
+                    if (_task!['status'] == 'executing') ...[
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: () async {
+                            await apiClient.pauseTask(widget.taskId);
+                            _loadDetail();
+                          },
+                          icon: const Icon(Icons.pause_rounded, size: 18),
+                          label: const Text('暂停'),
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.lg),
+                    ],
+
                     if (_task!['status'] == 'waiting_confirm') ...[
                       Row(
                         children: [

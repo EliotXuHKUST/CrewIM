@@ -729,6 +729,156 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'起草并发送邮件'**
   String get scene4Desc;
+
+  /// No description provided for @tryFirstCommand.
+  ///
+  /// In zh, this message translates to:
+  /// **'试试说一句话'**
+  String get tryFirstCommand;
+
+  /// No description provided for @tapSceneToStart.
+  ///
+  /// In zh, this message translates to:
+  /// **'或者点击下方场景快速开始'**
+  String get tapSceneToStart;
+
+  /// No description provided for @commandSent.
+  ///
+  /// In zh, this message translates to:
+  /// **'指令已发出，AI 正在处理…'**
+  String get commandSent;
+
+  /// No description provided for @uploading.
+  ///
+  /// In zh, this message translates to:
+  /// **'上传中…'**
+  String get uploading;
+
+  /// No description provided for @taskNotFound.
+  ///
+  /// In zh, this message translates to:
+  /// **'任务未找到'**
+  String get taskNotFound;
+
+  /// No description provided for @executionProgress.
+  ///
+  /// In zh, this message translates to:
+  /// **'执行进展'**
+  String get executionProgress;
+
+  /// No description provided for @finalResult.
+  ///
+  /// In zh, this message translates to:
+  /// **'最终结果'**
+  String get finalResult;
+
+  /// No description provided for @followUpHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'追问或补充…'**
+  String get followUpHint;
+
+  /// No description provided for @confirmExecution.
+  ///
+  /// In zh, this message translates to:
+  /// **'确认执行'**
+  String get confirmExecution;
+
+  /// No description provided for @conversation.
+  ///
+  /// In zh, this message translates to:
+  /// **'对话'**
+  String get conversation;
+
+  /// No description provided for @confirmExecuting.
+  ///
+  /// In zh, this message translates to:
+  /// **'任务已确认，正在执行…'**
+  String get confirmExecuting;
+
+  /// No description provided for @cancelled.
+  ///
+  /// In zh, this message translates to:
+  /// **'已取消'**
+  String get cancelled;
+
+  /// No description provided for @retrying.
+  ///
+  /// In zh, this message translates to:
+  /// **'正在重试…'**
+  String get retrying;
+
+  /// No description provided for @retryingUnderstand.
+  ///
+  /// In zh, this message translates to:
+  /// **'重新理解指令中…'**
+  String get retryingUnderstand;
+
+  /// No description provided for @followUpFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'补充发送失败'**
+  String get followUpFailed;
+
+  /// No description provided for @confirmFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'确认失败'**
+  String get confirmFailed;
+
+  /// No description provided for @cancelFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'取消失败'**
+  String get cancelFailed;
+
+  /// No description provided for @retryFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'重试失败'**
+  String get retryFailed;
+
+  /// No description provided for @pause.
+  ///
+  /// In zh, this message translates to:
+  /// **'暂停'**
+  String get pause;
+
+  /// No description provided for @addAccount.
+  ///
+  /// In zh, this message translates to:
+  /// **'添加账号'**
+  String get addAccount;
+
+  /// No description provided for @editAccount.
+  ///
+  /// In zh, this message translates to:
+  /// **'编辑账号'**
+  String get editAccount;
+
+  /// No description provided for @wechatWorkWebhook.
+  ///
+  /// In zh, this message translates to:
+  /// **'企业微信群机器人'**
+  String get wechatWorkWebhook;
+
+  /// No description provided for @wechatWorkWebhookHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'粘贴群机器人 Webhook URL'**
+  String get wechatWorkWebhookHint;
+
+  /// No description provided for @intlPhoneNotSupported.
+  ///
+  /// In zh, this message translates to:
+  /// **'国际号码暂不支持短信验证，请使用邮箱或 Apple 登录'**
+  String get intlPhoneNotSupported;
+
+  /// No description provided for @confirmDeleteAccount.
+  ///
+  /// In zh, this message translates to:
+  /// **'确认注销'**
+  String get confirmDeleteAccount;
 }
 
 class _AppLocalizationsDelegate

@@ -33,7 +33,6 @@ class _AuthGateState extends State<AuthGate> {
     final onboardingDone = prefs.getBool(_onboardingKey) ?? false;
 
     if (!onboardingDone) {
-      await prefs.setBool(_onboardingKey, true);
       if (mounted) setState(() { _target = const OnboardingScreen(); _checking = false; });
       return;
     }

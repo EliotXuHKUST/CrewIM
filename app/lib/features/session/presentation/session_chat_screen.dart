@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import '../../../l10n/app_localizations.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/socket_manager.dart';
@@ -246,41 +247,44 @@ class _SessionChatScreenState extends State<SessionChatScreen> {
         try {
           await _repo.confirmTask(taskId);
           _markConfirmResolved(taskId);
+          final l = AppLocalizations.of(context);
           await _addTypedMessage(
-            content: '已确认，开始执行',
+            content: l?.confirmExecuting ?? 'Confirmed',
             taskId: taskId,
             type: MessageType.taskProgress,
-            metadata: {'step': '任务已确认，正在执行…'},
+            metadata: {'step': l?.confirmExecuting ?? 'Confirmed'},
           );
         } catch (e) {
-          _showError('确认失败：$e');
+          _showError('${AppLocalizations.of(context)?.confirmFailed ?? "Confirm failed"}: $e');
         }
 
       case 'cancel':
         try {
           await _repo.cancelTask(taskId);
           _markConfirmResolved(taskId);
+          final l = AppLocalizations.of(context);
           await _addTypedMessage(
-            content: '已取消',
+            content: l?.cancelled ?? 'Cancelled',
             taskId: taskId,
             type: MessageType.taskFailed,
-            metadata: {'error': '任务已取消'},
+            metadata: {'error': l?.taskCancelled ?? 'Cancelled'},
           );
         } catch (e) {
-          _showError('取消失败：$e');
+          _showError('${AppLocalizations.of(context)?.cancelFailed ?? "Cancel failed"}: $e');
         }
 
       case 'retry':
         try {
           await _repo.retryTask(taskId);
+          final l = AppLocalizations.of(context);
           await _addTypedMessage(
-            content: '正在重试…',
+            content: l?.retrying ?? 'Retrying',
             taskId: taskId,
             type: MessageType.taskProgress,
-            metadata: {'step': '重新理解指令中…'},
+            metadata: {'step': l?.retryingUnderstand ?? 'Re-analyzing'},
           );
         } catch (e) {
-          _showError('重试失败：$e');
+          _showError('${AppLocalizations.of(context)?.retryFailed ?? "Retry failed"}: $e');
         }
 
       case 'follow_up':
@@ -341,7 +345,7 @@ class _SessionChatScreenState extends State<SessionChatScreen> {
     try {
       await _repo.followUp(taskId, text);
     } catch (e) {
-      _showError('补充发送失败：$e');
+      _showError('${AppLocalizations.of(context)?.followUpFailed ?? "Follow-up failed"}: $e');
     }
 
     _loadAll();
@@ -362,7 +366,7 @@ class _SessionChatScreenState extends State<SessionChatScreen> {
     try {
       await apiClient.sendCommand(text, sessionId: _currentSessionId);
     } catch (e) {
-      _showError('指令发送失败：$e');
+      _showError('${AppLocalizations.of(context)?.sendFailed ?? "Send failed"}: $e');
     }
 
     _loadAll();
@@ -383,7 +387,7 @@ class _SessionChatScreenState extends State<SessionChatScreen> {
         sessionId: _currentSessionId,
       );
     } catch (e) {
-      _showError('上传失败：$e');
+      _showError('${AppLocalizations.of(context)?.uploadFailed ?? "Upload failed"}: $e');
     }
 
     _loadAll();
