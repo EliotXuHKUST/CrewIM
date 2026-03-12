@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"sort"
 	"time"
@@ -20,15 +21,15 @@ type highlight struct {
 }
 
 type briefTask struct {
-	ID            string           `json:"id"`
-	InputText     *string          `json:"inputText"`
-	Understanding *string          `json:"understanding"`
-	Status        string           `json:"status"`
-	IntentType    *string          `json:"intentType"`
-	Result        json.RawMessage  `json:"result,omitempty"`
-	Error         *string          `json:"error,omitempty"`
-	CreatedAt     time.Time        `json:"createdAt"`
-	UpdatedAt     time.Time        `json:"updatedAt"`
+	ID            string          `json:"id"`
+	InputText     *string         `json:"inputText"`
+	Understanding *string         `json:"understanding"`
+	Status        string          `json:"status"`
+	IntentType    *string         `json:"intentType"`
+	Result        json.RawMessage `json:"result,omitempty"`
+	Error         *string         `json:"error,omitempty"`
+	CreatedAt     time.Time       `json:"createdAt"`
+	UpdatedAt     time.Time       `json:"updatedAt"`
 }
 
 func Briefing(w http.ResponseWriter, r *http.Request) {
@@ -38,7 +39,7 @@ func Briefing(w http.ResponseWriter, r *http.Request) {
 	todayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
 
 	rows, err := db.Pool.Query(ctx,
-		`SELECT id, COALESCE(input_text,''), understanding, status, intent_type,
+		`SELECT id, input_text, understanding, status, intent_type,
 		        result, error, created_at, updated_at
 		 FROM tasks WHERE user_id = $1
 		   AND status NOT IN ('cancelled')
@@ -53,34 +54,11 @@ func Briefing(w http.ResponseWriter, r *http.Request) {
 	var tasks []briefTask
 	for rows.Next() {
 		var t briefTask
-		var inputText string
-		if err := rows.Scan(&inputText, &inputText, &t.Understanding, &t.Status,
+		if err := rows.Scan(&t.ID, &t.InputText, &t.Understanding, &t.Status,
 			&t.IntentType, &t.Result, &t.Error, &t.CreatedAt, &t.UpdatedAt); err != nil {
 			continue
 		}
-		rows.Scan(&t.ID, &inputText, &t.Understanding, &t.Status,
-			&t.IntentType, &t.Result, &t.Error, &t.CreatedAt, &t.UpdatedAt)
-		t.InputText = &inputText
 		tasks = append(tasks, t)
-	}
-
-	// Re-query properly
-	tasks = nil
-	rows2, _ := db.Pool.Query(ctx,
-		`SELECT id, input_text, understanding, status, intent_type,
-		        result, error, created_at, updated_at
-		 FROM tasks WHERE user_id = $1
-		   AND status NOT IN ('cancelled')
-		   AND (status != 'completed' OR updated_at >= $2)
-		 ORDER BY created_at DESC LIMIT 50`, userID, todayStart)
-	if rows2 != nil {
-		defer rows2.Close()
-		for rows2.Next() {
-			var t briefTask
-			rows2.Scan(&t.ID, &t.InputText, &t.Understanding, &t.Status,
-				&t.IntentType, &t.Result, &t.Error, &t.CreatedAt, &t.UpdatedAt)
-			tasks = append(tasks, t)
-		}
 	}
 
 	var highlights []highlight
@@ -100,25 +78,25 @@ func Briefing(w http.ResponseWriter, r *http.Request) {
 		switch model.TaskStatus(t.Status) {
 		case model.TaskStatusWaitingConfirm:
 			priority = 100
-			reason = "需要你拍板"
+			reason = "needs_decision"
 			actions = []string{"confirm", "cancel", "detail"}
 		case model.TaskStatusFailed:
 			priority = 80
-			reason = "执行失败，需要处理"
+			reason = "failed"
 			actions = []string{"retry", "detail"}
 		case model.TaskStatusExecuting, model.TaskStatusUnderstanding, model.TaskStatusCreated:
 			priority = 10
-			reason = "正在进行"
+			reason = "in_progress"
 			actions = []string{"detail"}
 
 			if t.Status == string(model.TaskStatusExecuting) && now.Sub(t.CreatedAt) > 24*time.Hour {
 				priority = 60
-				reason = "执行时间较长，可能需要关注"
+				reason = "taking_long"
 				actions = []string{"detail", "cancel"}
 			}
 		case model.TaskStatusPaused:
 			priority = 40
-			reason = "已暂停，等待恢复"
+			reason = "paused"
 			actions = []string{"resume", "cancel", "detail"}
 		}
 
@@ -139,33 +117,11 @@ func Briefing(w http.ResponseWriter, r *http.Request) {
 		top = top[:3]
 	}
 
-	restSummary := ""
-	if restCount > 0 {
-		restSummary = formatRestSummary(restCount)
-	}
-
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]any{
 		"highlights":      top,
 		"rest_count":      restCount,
-		"rest_summary":    restSummary,
+		"rest_summary":    fmt.Sprintf("%d", restCount),
 		"today_completed": todayCompleted,
 	})
-}
-
-func formatRestSummary(count int) string {
-	if count == 1 {
-		return "另有 1 件事在正常推进"
-	}
-	return "另有 " + itoa(count) + " 件事在正常推进"
-}
-
-func itoa(n int) string {
-	if n < 0 {
-		return "-" + itoa(-n)
-	}
-	if n < 10 {
-		return string(rune('0' + n))
-	}
-	return itoa(n/10) + string(rune('0'+n%10))
 }

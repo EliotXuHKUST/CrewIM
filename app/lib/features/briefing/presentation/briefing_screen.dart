@@ -71,15 +71,37 @@ class _BriefingScreenState extends State<BriefingScreen> {
   }
 
   Future<void> _sendText(String text) async {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('指令已发出，AI 正在处理…'),
+        behavior: SnackBarBehavior.floating,
+        duration: Duration(seconds: 2),
+      ),
+    );
     final session = await _repo.createSession();
     await _repo.addUserMessage(session.id, text);
     try {
       await apiClient.sendCommand(text, sessionId: session.id);
-    } catch (_) {}
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('$e'), backgroundColor: AppColors.error),
+        );
+      }
+    }
     _loadBriefing();
   }
 
   Future<void> _sendMedia({String? audioPath, List<String>? imagePaths}) async {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('上传中…'),
+        behavior: SnackBarBehavior.floating,
+        duration: Duration(seconds: 2),
+      ),
+    );
     final session = await _repo.createSession();
     try {
       await apiClient.sendCommandWithMedia(
@@ -87,7 +109,13 @@ class _BriefingScreenState extends State<BriefingScreen> {
         imagePaths: imagePaths,
         sessionId: session.id,
       );
-    } catch (_) {}
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('$e'), backgroundColor: AppColors.error),
+        );
+      }
+    }
     _loadBriefing();
   }
 
@@ -141,7 +169,7 @@ class _BriefingScreenState extends State<BriefingScreen> {
                           if (_highlights.isNotEmpty)
                             ..._highlights.map((h) => _buildHighlightCard(h, l10n))
                           else
-                            _buildAllGood(l10n),
+                            _buildEmptyState(l10n),
                           if (_restCount > 0) ...[
                             const SizedBox(height: 16),
                             _buildRestSummary(l10n),
@@ -312,27 +340,79 @@ class _BriefingScreenState extends State<BriefingScreen> {
     );
   }
 
-  Widget _buildAllGood(AppLocalizations l10n) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 48),
-      child: Column(
-        children: [
-          Container(
-            width: 56, height: 56,
-            decoration: BoxDecoration(
-              color: AppColors.success.withValues(alpha: 0.1),
-              shape: BoxShape.circle,
+  Widget _buildEmptyState(AppLocalizations l10n) {
+    if (_todayCompleted > 0 || _restCount > 0) {
+      return Container(
+        padding: const EdgeInsets.symmetric(vertical: 32),
+        child: Column(
+          children: [
+            Container(
+              width: 48, height: 48,
+              decoration: BoxDecoration(
+                color: AppColors.success.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.check_rounded, size: 24, color: AppColors.success),
             ),
-            child: const Icon(Icons.check_rounded, size: 28, color: AppColors.success),
+            const SizedBox(height: 12),
+            Text(l10n.allGood, style: const TextStyle(fontSize: 15, color: AppColors.textSecondary)),
+          ],
+        ),
+      );
+    }
+
+    final prompts = [
+      (Icons.description_outlined, l10n.scene1Title, l10n.scene1Desc, '帮我写一份本周的工作简报'),
+      (Icons.checklist_rounded, l10n.scene2Title, l10n.scene2Desc, '帮我列一个今天的待办清单'),
+      (Icons.auto_awesome_rounded, l10n.scene3Title, l10n.scene3Desc, '帮我分析一下团队最近的问题'),
+      (Icons.email_outlined, l10n.scene4Title, l10n.scene4Desc, '帮我给团队写一封会议通知邮件'),
+    ];
+
+    return Column(
+      children: [
+        const SizedBox(height: 8),
+        Text(
+          '试试说一句话',
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: AppColors.textPrimary),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          '或者点击下方场景快速开始',
+          style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+        ),
+        const SizedBox(height: 20),
+        ...prompts.map((p) => Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: GestureDetector(
+            onTap: () => _sendText(p.$4),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              decoration: BoxDecoration(
+                color: AppColors.card,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.separator, width: 0.5),
+              ),
+              child: Row(
+                children: [
+                  Icon(p.$1, size: 20, color: AppColors.textSecondary),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(p.$2, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: AppColors.textPrimary)),
+                        Text(p.$3, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                      ],
+                    ),
+                  ),
+                  const Icon(Icons.arrow_forward_ios, size: 14, color: AppColors.textPlaceholder),
+                ],
+              ),
+            ),
           ),
-          const SizedBox(height: 16),
-          Text(
-            l10n.allGood,
-            style: const TextStyle(fontSize: 15, color: AppColors.textSecondary),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
+        )),
+      ],
     );
   }
 

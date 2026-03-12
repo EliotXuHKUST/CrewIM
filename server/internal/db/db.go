@@ -173,6 +173,12 @@ func Migrate() error {
 		`ALTER TABLE users ADD COLUMN IF NOT EXISTS apple_id VARCHAR(255) UNIQUE`,
 		`ALTER TABLE users ADD COLUMN IF NOT EXISTS google_id VARCHAR(255) UNIQUE`,
 		`ALTER TABLE users ADD COLUMN IF NOT EXISTS display_name TEXT`,
+		`CREATE TABLE IF NOT EXISTS feedback (
+		  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+		  user_id UUID NOT NULL REFERENCES users(id),
+		  content TEXT NOT NULL,
+		  created_at TIMESTAMPTZ DEFAULT NOW()
+		)`,
 	}
 	for _, m := range migrations {
 		if _, err := Pool.Exec(context.Background(), m); err != nil {

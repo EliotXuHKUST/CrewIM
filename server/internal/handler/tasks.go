@@ -252,3 +252,38 @@ func (h *TaskHandler) BatchConfirm(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]any{"confirmed": confirmed, "count": len(confirmed)})
 }
+
+func (h *TaskHandler) SearchTasks(w http.ResponseWriter, r *http.Request) {
+	userID := middleware.GetUserID(r)
+	q := r.URL.Query().Get("q")
+	if q == "" {
+		http.Error(w, `{"error":"q parameter required"}`, http.StatusBadRequest)
+		return
+	}
+
+	ctx := context.Background()
+	pattern := "%" + q + "%"
+	rows, err := db.Pool.Query(ctx,
+		`SELECT id, user_id, input_text, understanding, status, session_id, result, error, created_at, updated_at
+		 FROM tasks WHERE user_id = $1
+		   AND (input_text ILIKE $2 OR understanding ILIKE $2)
+		 ORDER BY created_at DESC LIMIT 20`, userID, pattern)
+	if err != nil {
+		http.Error(w, `{"error":"Search failed"}`, http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	var tasks []model.Task
+	for rows.Next() {
+		var t model.Task
+		rows.Scan(&t.ID, &t.UserID, &t.InputText, &t.Understanding, &t.Status, &t.SessionID, &t.Result, &t.Error, &t.CreatedAt, &t.UpdatedAt)
+		tasks = append(tasks, t)
+	}
+	if tasks == nil {
+		tasks = []model.Task{}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]any{"tasks": tasks})
+}

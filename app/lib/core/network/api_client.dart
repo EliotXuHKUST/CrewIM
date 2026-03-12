@@ -307,6 +307,14 @@ class ApiClient {
     return _request('GET', '/api/tasks', query: query);
   }
 
+  Future<Map<String, dynamic>> searchTasks(String query) async {
+    return _request('GET', '/api/tasks/search', query: {'q': query});
+  }
+
+  Future<Map<String, dynamic>> sendFeedback(String content) async {
+    return _request('POST', '/api/feedback', body: {'content': content});
+  }
+
   Future<Map<String, dynamic>> getTaskDetail(String taskId) async {
     return _request('GET', '/api/tasks/$taskId');
   }

@@ -169,17 +169,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
           actions: [
             TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
             TextButton(
-              onPressed: () {
+              onPressed: () async {
                 final text = controller.text.trim();
                 if (text.isNotEmpty) {
-                  // Silently send feedback; for MVP we just acknowledge
                   Navigator.pop(ctx);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('感谢你的反馈！'),
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  );
+                  try {
+                    await apiClient.sendFeedback(text);
+                  } catch (_) {}
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('感谢你的反馈！'),
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  }
                 }
               },
               child: const Text('提交'),

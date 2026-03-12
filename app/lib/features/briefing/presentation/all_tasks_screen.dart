@@ -13,6 +13,8 @@ class AllTasksScreen extends StatefulWidget {
 class _AllTasksScreenState extends State<AllTasksScreen> {
   List<Map<String, dynamic>> _tasks = [];
   bool _loading = true;
+  final _searchController = TextEditingController();
+  bool _searching = false;
 
   @override
   void initState() {
@@ -20,11 +22,32 @@ class _AllTasksScreenState extends State<AllTasksScreen> {
     _load();
   }
 
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
   Future<void> _load() async {
     try {
       final result = await apiClient.getTasks(limit: 50);
       final list = (result['tasks'] as List?)?.cast<Map<String, dynamic>>() ?? [];
-      if (mounted) setState(() { _tasks = list; _loading = false; });
+      if (mounted) setState(() { _tasks = list; _loading = false; _searching = false; });
+    } catch (e) {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _search(String query) async {
+    if (query.trim().isEmpty) {
+      _load();
+      return;
+    }
+    setState(() => _loading = true);
+    try {
+      final result = await apiClient.searchTasks(query.trim());
+      final list = (result['tasks'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+      if (mounted) setState(() { _tasks = list; _loading = false; _searching = true; });
     } catch (e) {
       if (mounted) setState(() => _loading = false);
     }
@@ -57,6 +80,28 @@ class _AllTasksScreenState extends State<AllTasksScreen> {
                   const SizedBox(width: 4),
                   Text(l10n.allTasks, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w500, color: AppColors.textPrimary)),
                 ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              child: TextField(
+                controller: _searchController,
+                onSubmitted: _search,
+                decoration: InputDecoration(
+                  hintText: l10n.search,
+                  hintStyle: const TextStyle(color: AppColors.textPlaceholder, fontSize: 14),
+                  prefixIcon: const Icon(Icons.search, size: 20, color: AppColors.textPlaceholder),
+                  suffixIcon: _searching ? IconButton(
+                    onPressed: () { _searchController.clear(); _load(); },
+                    icon: const Icon(Icons.close, size: 18, color: AppColors.textSecondary),
+                  ) : null,
+                  filled: true,
+                  fillColor: AppColors.inputFill,
+                  isDense: true,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+                ),
+                style: const TextStyle(fontSize: 14, color: AppColors.textPrimary),
               ),
             ),
             Expanded(
